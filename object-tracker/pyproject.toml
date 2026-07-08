@@ -1,0 +1,28 @@
+[tool.poetry]
+# If using poetry later
+name = "trackr"
+version = "0.1.0"
+description = "Autonomous CV Pipeline"
+authors = ["Antigravity"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+exclude = ["tests/", "frontend/", "venv/", ".venv/"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=core --cov=services --cov=tracker --cov=api --cov-report=html --cov-report=term"
+testpaths = ["tests"]

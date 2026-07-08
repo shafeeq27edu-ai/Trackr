@@ -4,7 +4,8 @@ from config.settings import settings
 from tracker.detector import YoloDetector
 from core.logging import logger
 from core.exceptions import TrackrException, trackr_exception_handler, global_exception_handler
-from api.v1 import video
+from core.job_manager import JobManager
+from api.v1 import jobs
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,7 +21,8 @@ async def lifespan(app: FastAPI):
         detector = YoloDetector(settings.yolo_model_path)
         app.state.detector = detector
         app.state.settings = settings
-        logger.info("Model loaded successfully. Ready to serve requests.")
+        app.state.job_manager = JobManager()
+        logger.info("Model and JobManager loaded successfully. Ready to serve requests.")
     except Exception as e:
         logger.critical(f"Failed to initialize model during startup: {str(e)}", exc_info=True)
         raise e
@@ -42,4 +44,4 @@ app.add_exception_handler(TrackrException, trackr_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 # Register API Routers
-app.include_router(video.router, prefix="/api/v1", tags=["video"])
+app.include_router(jobs.router, prefix="/api/v1", tags=["jobs"])

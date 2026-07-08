@@ -9,3 +9,10 @@ streamlit
 requests
 pydantic-settings
 python-dotenv
+
+pytest
+pytest-cov
+httpx
+ruff
+black
+mypy
