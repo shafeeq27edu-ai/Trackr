@@ -7,3 +7,5 @@ uvicorn
 python-multipart
 streamlit
 requests
+pydantic-settings
+python-dotenv

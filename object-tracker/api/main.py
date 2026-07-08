@@ -1,54 +1,45 @@
-import os
-import shutil
-import uuid
-import json
-from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from typing import Dict
-from services.video_service import process_video_file
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from config.settings import settings
+from tracker.detector import YoloDetector
+from core.logging import logger
+from core.exceptions import TrackrException, trackr_exception_handler, global_exception_handler
+from api.v1 import video
 
-app = FastAPI(title="Trackr API", description="Computer Vision Object Tracking Backend")
-
-class ProcessResult(BaseModel):
-    message: str
-    unique_counts: Dict[str, int]
-
-@app.post("/process-video")
-def process_video(file: UploadFile = File(...)):
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
-    Accepts a video upload, runs the object tracking pipeline, and returns the annotated video.
-    Note: Standard `def` endpoints run in a threadpool, preventing this CPU-bound task from blocking the event loop.
+    FastAPI Lifespan event handler.
+    Initializes heavy models once on startup and makes them globally accessible via app.state.
     """
-    # Create temporary directories if they don't exist
-    temp_dir = "data/temp"
-    output_dir = "outputs/api"
-    os.makedirs(temp_dir, exist_ok=True)
-    os.makedirs(output_dir, exist_ok=True)
+    logger.info("Initializing application startup sequence...")
+    logger.info(f"Loading YOLO model from: {settings.yolo_model_path}")
     
-    # Generate unique filenames
-    file_id = str(uuid.uuid4())
-    input_filename = f"{file_id}_{file.filename}"
-    output_filename = f"tracked_{file_id}_{file.filename}"
-    
-    input_path = os.path.join(temp_dir, input_filename)
-    output_path = os.path.join(output_dir, output_filename)
-    
-    # Save the uploaded file to disk
-    with open(input_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        # Load the heavy model exactly once!
+        detector = YoloDetector(settings.yolo_model_path)
+        app.state.detector = detector
+        app.state.settings = settings
+        logger.info("Model loaded successfully. Ready to serve requests.")
+    except Exception as e:
+        logger.critical(f"Failed to initialize model during startup: {str(e)}", exc_info=True)
+        raise e
         
-    # Process the video via our service layer (business logic)
-    counts = process_video_file(input_path, output_path)
+    yield
     
-    # Return the processed video along with custom headers containing analytics
-    headers = {
-        "X-Analytics-Summary": json.dumps(counts)
-    }
-    
-    return FileResponse(
-        path=output_path,
-        media_type="video/mp4",
-        filename=output_filename,
-        headers=headers
-    )
+    logger.info("Application shutdown sequence initiated.")
+    # Add any cleanup logic here
+
+app = FastAPI(
+    title="Trackr API", 
+    description="Computer Vision Object Tracking Backend",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Register Custom Exception Handlers
+app.add_exception_handler(TrackrException, trackr_exception_handler)
+app.add_exception_handler(Exception, global_exception_handler)
+
+# Register API Routers
+app.include_router(video.router, prefix="/api/v1", tags=["video"])

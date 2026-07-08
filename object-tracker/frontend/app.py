@@ -9,7 +9,7 @@ st.title("👁️ Trackr: Object Tracking Dashboard")
 st.markdown("Upload a video to process it through our YOLOv8 and ByteTrack pipeline. The FastAPI backend handles the heavy lifting.")
 
 # Define the API endpoint
-API_URL = "http://localhost:8000/process-video"
+API_URL = "http://localhost:8000/api/v1/process/video"
 
 uploaded_file = st.file_uploader("Upload a video file (.mp4)", type=["mp4"])
 
