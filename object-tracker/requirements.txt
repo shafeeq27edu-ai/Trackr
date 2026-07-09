@@ -9,6 +9,13 @@ streamlit
 requests
 pydantic-settings
 python-dotenv
+psutil
+websockets
+sqlalchemy
+alembic
+passlib[bcrypt]
+pyjwt
+python-multipart
 
 pytest
 pytest-cov

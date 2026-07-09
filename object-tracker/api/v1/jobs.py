@@ -2,9 +2,9 @@ import os
 import shutil
 import uuid
 import json
-from fastapi import APIRouter, UploadFile, File, Depends, BackgroundTasks, HTTPException
+from fastapi import APIRouter, UploadFile, File, Depends, BackgroundTasks, HTTPException, Form
 from fastapi.responses import FileResponse, JSONResponse
-from typing import Dict, List
+from typing import Dict, List, Optional
 from services.video_service import process_video_file
 from core.dependencies import get_detector, get_settings, get_job_manager
 from tracker.detector import YoloDetector
@@ -12,6 +12,8 @@ from config.settings import Settings
 from core.exceptions import UnsupportedFormatError
 from core.job_manager import JobManager, JobStatus, Job
 from core.logging import logger
+from api.deps import get_current_user
+from db.models import User
 
 router = APIRouter()
 
@@ -19,9 +21,11 @@ router = APIRouter()
 def create_job(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    project_id: Optional[str] = Form(None),
     detector: YoloDetector = Depends(get_detector),
     settings: Settings = Depends(get_settings),
-    job_manager: JobManager = Depends(get_job_manager)
+    job_manager: JobManager = Depends(get_job_manager),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Accepts a video upload, creates a new job, kicks off processing in the background, 
@@ -35,7 +39,7 @@ def create_job(
     os.makedirs(settings.temp_dir, exist_ok=True)
     os.makedirs(settings.output_dir, exist_ok=True)
     
-    job = job_manager.create_job(filename=file.filename)
+    job = job_manager.create_job(filename=file.filename, user_id=current_user.id, project_id=project_id)
     job_manager.update_job(job.id, status=JobStatus.INITIALIZING, stage="Saving file")
     
     input_filename = f"{job.id}_{file.filename}"
@@ -64,16 +68,16 @@ def create_job(
     return {"job_id": job.id, "status": job.status, "message": "Job successfully queued for processing."}
 
 @router.get("/jobs/{job_id}", response_model=Job)
-def get_job_status(job_id: str, job_manager: JobManager = Depends(get_job_manager)):
+def get_job_status(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
     job = job_manager.get_job(job_id)
-    if not job:
+    if not job or (job.user_id and job.user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 @router.get("/jobs/{job_id}/result")
-def get_job_result(job_id: str, job_manager: JobManager = Depends(get_job_manager)):
+def get_job_result(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
     job = job_manager.get_job(job_id)
-    if not job:
+    if not job or (job.user_id and job.user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Job not found")
     
     if job.status != JobStatus.COMPLETED or not job.output_path:
@@ -89,9 +93,9 @@ def get_job_result(job_id: str, job_manager: JobManager = Depends(get_job_manage
     )
 
 @router.get("/jobs/{job_id}/analytics")
-def get_job_analytics(job_id: str, job_manager: JobManager = Depends(get_job_manager)):
+def get_job_analytics(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
     job = job_manager.get_job(job_id)
-    if not job:
+    if not job or (job.user_id and job.user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status != JobStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Job is not completed yet.")
@@ -99,9 +103,9 @@ def get_job_analytics(job_id: str, job_manager: JobManager = Depends(get_job_man
     return JSONResponse(content={"analytics": job.analytics})
 
 @router.get("/jobs/{job_id}/heatmap")
-def get_job_heatmap(job_id: str, job_manager: JobManager = Depends(get_job_manager)):
+def get_job_heatmap(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
     job = job_manager.get_job(job_id)
-    if not job or job.status != JobStatus.COMPLETED or not job.output_path:
+    if not job or (job.user_id and job.user_id != current_user.id) or job.status != JobStatus.COMPLETED or not job.output_path:
         raise HTTPException(status_code=404, detail="Heatmap not available yet.")
         
     job_dir = os.path.dirname(job.output_path)
@@ -117,9 +121,9 @@ def get_job_heatmap(job_id: str, job_manager: JobManager = Depends(get_job_manag
     )
 
 @router.get("/jobs/{job_id}/report")
-def get_job_report(job_id: str, job_manager: JobManager = Depends(get_job_manager)):
+def get_job_report(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
     job = job_manager.get_job(job_id)
-    if not job or job.status != JobStatus.COMPLETED or not job.output_path:
+    if not job or (job.user_id and job.user_id != current_user.id) or job.status != JobStatus.COMPLETED or not job.output_path:
         raise HTTPException(status_code=404, detail="Report not available yet.")
         
     job_dir = os.path.dirname(job.output_path)
@@ -135,14 +139,16 @@ def get_job_report(job_id: str, job_manager: JobManager = Depends(get_job_manage
     )
 
 @router.get("/jobs")
-def list_jobs(job_manager: JobManager = Depends(get_job_manager)):
+def list_jobs(job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
     jobs = job_manager.list_jobs()
-    return {"jobs": [job.model_dump() for job in jobs.values()]}
+    # Filter by user
+    user_jobs = [job.model_dump() for job in jobs.values() if job.user_id == current_user.id]
+    return {"jobs": user_jobs}
 
 @router.delete("/jobs/{job_id}")
-def delete_job(job_id: str, job_manager: JobManager = Depends(get_job_manager)):
+def delete_job(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
     job = job_manager.get_job(job_id)
-    if not job:
+    if not job or (job.user_id and job.user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Job not found")
         
     # Attempt to clean up files

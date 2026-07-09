@@ -17,14 +17,17 @@ class YoloDetector:
     Wrapper for YOLOv8 inference that standardizes outputs into supervision.Detections.
     """
     
-    def __init__(self, model_name: str = "yolov8n.pt"):
+    def __init__(self, model_name: str = "yolov8n.pt", device: str = None):
         """
         Initializes the YOLOv8 model.
         
         Args:
             model_name (str): The name or path of the YOLO model weights.
+            device (str): Device to run the model on (e.g. 'cpu', 'cuda', 'mps').
         """
         self.model = YOLO(model_name)
+        if device:
+            self.model.to(device)
     
     def detect(self, frame: np.ndarray, conf_threshold: float = 0.25) -> sv.Detections:
         """

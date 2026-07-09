@@ -167,19 +167,26 @@ def process_video_file(
                 # 6. Save to output video
                 sink.write_frame(frame=annotated_frame)
                 
+                # Cleanup frame memory
+                del frame
+                del annotated_frame
+                
                 frame_idx += 1
                 
                 # Update Job Progress (throttle updates)
                 if frame_idx % 10 == 0 or frame_idx == total_frames:
                     progress_percentage = (frame_idx / total_frames) * 100 if total_frames > 0 else 0
-                    job_manager.update_job(job_id, progress=progress_percentage)
+                    current_fps = frame_idx / (time.time() - start_time)
+                    job_manager.update_job(job_id, progress=progress_percentage, average_fps=current_fps)
                     
         duration = time.time() - start_time
-        logger.info(f"Successfully processed {frame_idx} frames in {duration:.2f} seconds.")
+        final_fps = frame_idx / duration if duration > 0 else 0
+        logger.info(f"Successfully processed {frame_idx} frames in {duration:.2f} seconds (FPS: {final_fps:.2f}).")
         
         # Save Heatmap image
         if use_heatmap:
             cv2.imwrite(heatmap_path, heatmap_canvas)
+            del heatmap_canvas
         
         # Generate final Session Summary
         summary = analytics.generate_session_summary(total_frames, duration)
@@ -191,7 +198,9 @@ def process_video_file(
             status=JobStatus.COMPLETED, 
             output_path=output_path,
             analytics=summary,
-            stage="Completed"
+            stage="Completed",
+            average_fps=final_fps,
+            processing_throughput=final_fps
         )
         
         # Explicitly store heatmap path in the job state dict to ensure API can find it
