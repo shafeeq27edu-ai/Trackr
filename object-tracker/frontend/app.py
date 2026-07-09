@@ -6,8 +6,10 @@ import json
 
 st.set_page_config(page_title="Trackr Advanced Analytics", page_icon="🎥", layout="wide")
 
-API_BASE_URL = "http://localhost:8000/api/v1"
-SYS_API_BASE_URL = "http://localhost:8000/api/v1/system"
+import os
+
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
+SYS_API_BASE_URL = os.getenv("SYS_API_BASE_URL", "http://localhost:8000/api/v1/system")
 
 # --- Session State Management ---
 if "token" not in st.session_state:

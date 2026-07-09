@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from config.settings import settings
+from pythonjsonlogger import jsonlogger
 
 def setup_logging():
     os.makedirs(settings.log_dir, exist_ok=True)
@@ -15,9 +16,16 @@ def setup_logging():
         
     logger.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
     
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    log_format = getattr(settings, "log_format", "text").lower()
+    
+    if log_format == "json":
+        formatter = jsonlogger.JsonFormatter(
+            "%(asctime)s %(name)s %(levelname)s %(message)s"
+        )
+    else:
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
     
     # Console Handler
     console_handler = logging.StreamHandler(sys.stdout)

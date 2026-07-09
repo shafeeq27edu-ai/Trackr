@@ -5,7 +5,8 @@ from config.settings import settings
 from core.logging import logger
 from core.exceptions import TrackrException, trackr_exception_handler, global_exception_handler
 from core.job_manager import JobManager
-from api.v1 import jobs, system, streams, auth, projects
+from api.v1 import jobs, system, streams, auth, projects, health
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from core.model_manager import ModelManager
 
@@ -54,4 +55,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(projects.router, prefix="/api/v1/projects", tags=["projects"])
 app.include_router(jobs.router, prefix="/api/v1", tags=["jobs"])
 app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
-app.include_router(streams.router, prefix="/api/v1/streams", tags=["streams"])
+app.include_router(health.router, prefix="/api/v1/system", tags=["health"])
+
+# Mount Prometheus metrics
+Instrumentator().instrument(app).expose(app)

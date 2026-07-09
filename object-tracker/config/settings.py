@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     output_dir: str = "outputs/api"
     log_dir: str = "outputs"
     log_level: str = "INFO"
+    log_format: str = "text"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
