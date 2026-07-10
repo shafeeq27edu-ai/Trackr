@@ -7,6 +7,7 @@ import json
 
 from db.database import SessionLocal
 from db.models import Job as JobDB
+from core.events import event_bus, EventType
 
 class JobStatus(str, Enum):
     QUEUED = "QUEUED"
@@ -72,6 +73,7 @@ class JobManager:
         finally:
             db.close()
             
+        event_bus.publish(EventType.JOB_CREATED, {"job_id": job.id, "filename": job.filename})
         return job
 
     def get_job(self, job_id: str) -> Optional[Job]:
@@ -134,6 +136,11 @@ class JobManager:
                 job.duration = (job.completion_time - job.start_time).total_seconds()
                 if status == JobStatus.COMPLETED:
                     job.progress = 100.0
+                    event_bus.publish(EventType.JOB_COMPLETED, {"job_id": job.id, "duration": job.duration})
+                else:
+                    event_bus.publish(EventType.JOB_FAILED, {"job_id": job.id, "error": error})
+            elif status == JobStatus.PROCESSING and job.status != JobStatus.PROCESSING:
+                event_bus.publish(EventType.JOB_STARTED, {"job_id": job.id})
                     
         if progress is not None:
             job.progress = progress

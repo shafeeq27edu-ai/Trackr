@@ -1,59 +1,86 @@
-# Trackr: AI Video Analytics & Streaming Platform
+# Trackr: Open Source Computer Vision Platform
 
-Trackr is an advanced computer vision platform that leverages YOLOv8 and ByteTrack to provide real-time and offline video analytics. It is designed to be easily deployable, highly observable, and simple to use.
+[![Release](https://img.shields.io/github/v/release/trackr/trackr)](https://github.com/trackr/trackr/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/trackr/trackr/release.yml?branch=main)](https://github.com/trackr/trackr/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100.0-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
 
-## Features
+Trackr is an advanced, modular computer vision platform designed for scalability, ease of use, and enterprise extensibility. Leverage state-of-the-art models (YOLOv8) and tracking algorithms (ByteTrack) to provide real-time and offline video analytics out of the box.
 
+[Documentation](https://docs.trackr.io) | [Getting Started](https://docs.trackr.io/quick-start) | [SDK](https://docs.trackr.io/sdk) | [Examples](examples/README.md)
+
+---
+
+## 🚀 Features
+
+- **Extensible Architecture**: Build and deploy custom Plugins for Detectors, Trackers, and Analytics.
 - **Offline Video Analytics**: Upload videos and generate detailed JSON analytics, CSV telemetry, and spatial heatmaps.
 - **Live Streaming**: Connect RTSP cameras or webcams for real-time monitoring and WebSocket-based visualization.
-- **Clean Architecture**: Built on FastAPI with strict separation of concerns.
-- **Multi-Tenant Workspaces**: Secure user authentication (JWT) and project-based data isolation (SQLite).
+- **Official SDK & CLI**: Manage jobs, models, and plugins directly from Python or your terminal (`pip install trackr-sdk`).
+- **Multi-Tenant Workspaces**: Secure user authentication (JWT) and project-based data isolation.
 - **Production Ready**: Fully Dockerized with Prometheus metrics, JSON logging, and health endpoints.
-- **Interactive UI**: A modern Streamlit dashboard for easy interaction.
+- **Event-Driven**: An internal pub/sub event bus for decoupled component communication.
 
-## Architecture
+---
+
+## 🏗 Architecture
 
 ```mermaid
 graph TD
-    User([User]) --> Frontend[Streamlit Dashboard]
-    Frontend --> Auth[Auth API]
-    Frontend --> JobsAPI[Jobs API]
-    Frontend --> StreamsAPI[Streams API]
+    User([Developer / SDK]) --> API[FastAPI Server]
+    API --> Auth[Auth & Projects]
+    API --> Plugins[Plugin Manager & Model Registry]
     
-    JobsAPI --> JobMgr[Job Manager]
-    JobMgr --> Worker[Background Task / CV Pipeline]
-    Worker --> YOLO[YOLOv8 Detector]
-    Worker --> ByteTrack[ByteTrack]
+    API --> Jobs[Job Execution Backend]
+    Jobs --> Video[Offline Video Processing]
     
-    StreamsAPI --> StreamMgr[Stream Manager]
-    StreamMgr --> LiveLoop[Async Inference Loop]
-    LiveLoop --> YOLO
+    API --> Streams[Stream Manager]
+    Streams --> RTSP[Real-Time WebSocket Inference]
     
-    Auth --> DB[(SQLite + SQLAlchemy)]
-    JobMgr --> DB
+    Plugins -.-> |Provides| Video
+    Plugins -.-> |Provides| RTSP
+    
+    Video --> Storage[(Storage Abstraction)]
+    Video --> Events((Event Bus))
 ```
 
-## Quick Start (Docker Compose)
+---
 
-The easiest way to run Trackr is via Docker Compose:
+## 💻 Quick Start
 
-1. Clone the repository.
-2. `cp .env.example .env` and update the `SECRET_KEY`.
-3. `docker compose up --build -d`
-4. Visit `http://localhost:8501` to use the dashboard!
+### 1. Using Docker Compose
+The easiest way to run the full platform (API + Streamlit Dashboard):
+```bash
+git clone https://github.com/trackr/trackr.git
+cd trackr
+cp .env.example .env
+docker compose up --build -d
+```
+Visit `http://localhost:8501` to use the dashboard!
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for more detailed deployment instructions.
+### 2. Using the CLI
+```bash
+pip install trackr-sdk
+export TRACKR_TOKEN="your_jwt_token"
+trackr analyze my_video.mp4
+```
 
-## Local Development
+### 3. Using the Python SDK
+```python
+from trackr_sdk import TrackrClient
 
-If you prefer to run it without Docker:
+client = TrackrClient("http://localhost:8000", token="your_token")
+job = client.submit_job("intersection.mp4")
+print(f"Tracking job started: {job.id}")
+```
 
-1. Install requirements: `pip install -r requirements.txt`
-2. Run migrations: `alembic upgrade head`
-3. Start backend: `uvicorn api.main:app --reload`
-4. Start frontend: `streamlit run frontend/app.py`
+---
 
-## Roadmap
-- [ ] Migrate to PostgreSQL for enterprise deployments.
-- [ ] Implement Celery + Redis for distributed background job processing.
-- [ ] Add support for custom YOLOv8 model weights upload.
+## 🛠 Contributing
+We love our contributors! Please see our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
+
+If you find a security issue, please review our [Security Policy](SECURITY.md).
+
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

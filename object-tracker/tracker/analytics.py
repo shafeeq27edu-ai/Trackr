@@ -2,16 +2,30 @@ import csv
 import os
 import time
 import json
-from typing import Dict, Set, List, Tuple
+from typing import Dict, Set, List, Tuple, Any
 import supervision as sv
 from core.logging import logger
+from tracker.analytics_base import BaseAnalytics
+from core.plugin_manager import plugin_manager
 
-class AnalyticsEngine:
+class AnalyticsEnginePlugin(BaseAnalytics):
     """
     Manages advanced object analytics including unique deduplicated counts, 
     CSV event logging, Dwell Time, Zone Entry/Exits, and Peak Occupancy.
+    Acts as an analytics plugin.
     """
     
+    @property
+    def name(self) -> str:
+        return "AdvancedAnalytics"
+
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+
+    def get_results(self) -> Dict[str, Any]:
+        return self.get_summary_text() # Or whatever JSON payload we prefer
+        
     def __init__(self, log_dir: str = "outputs", fps: float = 30.0):
         self.log_dir = log_dir
         self.fps = fps
@@ -55,7 +69,7 @@ class AnalyticsEngine:
                 
             self.zone_states[zone_id][t_id] = is_in_zone
 
-    def process_detections(self, detections: sv.Detections, class_names: Dict[int, str], frame_idx: int) -> None:
+    def process_frame(self, detections: sv.Detections, class_names: Dict[int, str], frame_idx: int) -> None:
         """
         Updates unique counts, dwell times, and logs detection events to the CSV.
         """
@@ -146,3 +160,13 @@ class AnalyticsEngine:
             
         logger.info(f"Session summary generated at {self.summary_path}")
         return summary
+        
+    def reset(self) -> None:
+        """Reset the analytics state."""
+        self.unique_counts.clear()
+
+# Backward compatibility alias
+AnalyticsEngine = AnalyticsEnginePlugin
+
+# Register AnalyticsEngine as a plugin
+plugin_manager.register_plugin(AnalyticsEnginePlugin)

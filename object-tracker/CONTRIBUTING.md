@@ -1,18 +1,14 @@
-# Contributing to Trackr
+﻿# Contributing to Trackr
 
 We love your input! We want to make contributing to this project as easy and transparent as possible.
 
 ## Pull Requests
-
-1. Fork the repo and create your branch from `main`.
+1. Fork the repo and create your branch from main.
 2. If you've added code that should be tested, add tests.
-3. Ensure the test suite passes (`pytest`).
-4. Ensure your code passes the linter (`ruff check .`).
-5. Ensure your Docker images build correctly.
+3. If you've changed APIs, update the documentation.
+4. Ensure the test suite passes.
+5. Make sure your code lints.
+6. Issue that pull request!
 
-## Development Environment Setup
-
-1. Install dependencies: `pip install -r requirements.txt`
-2. Run database migrations: `alembic upgrade head`
-3. Start backend: `uvicorn api.main:app --reload`
-4. Start frontend: `streamlit run frontend/app.py`
+## Any contributions you make will be under the MIT Software License
+In short, when you submit code changes, your submissions are understood to be under the same MIT License that covers the project.

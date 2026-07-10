@@ -5,7 +5,7 @@ from config.settings import settings
 from core.logging import logger
 from core.exceptions import TrackrException, trackr_exception_handler, global_exception_handler
 from core.job_manager import JobManager
-from api.v1 import jobs, system, streams, auth, projects, health
+from api.v1 import jobs, system, streams, auth, projects, health, models, plugins, enterprise
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from core.model_manager import ModelManager
@@ -19,6 +19,12 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing application startup sequence...")
     
     try:
+        # Discover plugins and models
+        from core.plugin_manager import plugin_manager
+        from core.models.registry import model_registry
+        plugin_manager.discover_plugins()
+        model_registry.discover_from_plugins()
+        
         # Load the ModelManager exactly once!
         model_manager = ModelManager()
         # Pre-load the configured model
@@ -56,6 +62,9 @@ app.include_router(projects.router, prefix="/api/v1/projects", tags=["projects"]
 app.include_router(jobs.router, prefix="/api/v1", tags=["jobs"])
 app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
 app.include_router(health.router, prefix="/api/v1/system", tags=["health"])
+app.include_router(models.router, prefix="/api/v1", tags=["models"])
+app.include_router(plugins.router, prefix="/api/v1", tags=["plugins"])
+app.include_router(enterprise.router, prefix="/api/v1", tags=["enterprise"])
 
 # Mount Prometheus metrics
 Instrumentator().instrument(app).expose(app)

@@ -12,34 +12,45 @@ torch.load = safe_load
 from ultralytics import YOLO
 import supervision as sv
 
-class YoloDetector:
+from core.models.base import BaseDetector
+from core.plugin_manager import plugin_manager
+
+class YoloDetectorPlugin(BaseDetector):
     """
     Wrapper for YOLOv8 inference that standardizes outputs into supervision.Detections.
+    Acts as a detection plugin for the ModelRegistry.
     """
     
-    def __init__(self, model_name: str = "yolov8n.pt", device: str = None):
+    def __init__(self, model_name: str = "yolov8n.pt"):
         """
-        Initializes the YOLOv8 model.
+        Initializes the YOLOv8 model plugin definition.
+        """
+        self.model_name = model_name
+        self.model = None
+        self.device = None
         
-        Args:
-            model_name (str): The name or path of the YOLO model weights.
-            device (str): Device to run the model on (e.g. 'cpu', 'cuda', 'mps').
-        """
-        self.model = YOLO(model_name)
+    @property
+    def name(self) -> str:
+        return f"YOLOv8 ({self.model_name})"
+
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+        
+    def load_model(self, device: str = "cpu"):
+        """Loads the weights into memory."""
+        self.device = device
+        self.model = YOLO(self.model_name)
         if device:
             self.model.to(device)
     
     def detect(self, frame: np.ndarray, conf_threshold: float = 0.25) -> sv.Detections:
         """
         Runs inference on a single frame and returns supervision Detections.
-        
-        Args:
-            frame (np.ndarray): The input image/frame.
-            conf_threshold (float): Minimum confidence to keep a detection.
-            
-        Returns:
-            sv.Detections: The detected objects.
         """
+        if self.model is None:
+            raise RuntimeError("Model is not loaded. Call load_model() first.")
+            
         # Run inference on the frame
         result = self.model(frame, verbose=False)[0]
         
@@ -50,3 +61,11 @@ class YoloDetector:
         detections = detections[detections.confidence >= conf_threshold]
         
         return detections
+
+# Backward compatibility alias
+YoloDetector = YoloDetectorPlugin
+
+# Register common YOLO models as plugins
+plugin_manager.register_plugin(lambda: YoloDetectorPlugin("yolov8n.pt"))
+plugin_manager.register_plugin(lambda: YoloDetectorPlugin("yolov8s.pt"))
+plugin_manager.register_plugin(lambda: YoloDetectorPlugin("yolov8m.pt"))

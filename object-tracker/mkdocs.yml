@@ -1,0 +1,52 @@
+site_name: Trackr Documentation
+site_description: Official documentation for the Trackr Computer Vision Platform
+site_author: Trackr Maintainers
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: installation.md
+      - Quick Start: quick-start.md
+  - Architecture: architecture.md
+  - SDK & API:
+      - Python SDK: sdk.md
+      - REST API: api-reference.md
+  - Extending Trackr:
+      - Plugin Development: plugins.md
+      - Model Registry: models.md
+  - Deployment: deployment.md
+  - Examples: examples.md
+  - Support:
+      - FAQ: faq.md
+      - Troubleshooting: troubleshooting.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - toc:
+      permalink: true

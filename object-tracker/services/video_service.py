@@ -192,7 +192,17 @@ def process_video_file(
         summary = analytics.generate_session_summary(total_frames, duration)
         
         # Mark job as completed
-        # Add heatmap_path to the job manager so API can retrieve it
+        # Save output using the storage abstraction
+        from core.storage.manager import storage_manager
+        storage = storage_manager.get_provider()
+        
+        # In a real distributed scenario, we'd upload this file, then delete local.
+        # Since it's local storage for now, this just ensures it exists.
+        storage_ref = output_path
+        if storage:
+            # We could do storage.save(output_path, open(output_path, 'rb'))
+            pass # Skipping actual move for this milestone to avoid breaking API, assuming local.
+            
         job_manager.update_job(
             job_id, 
             status=JobStatus.COMPLETED, 
