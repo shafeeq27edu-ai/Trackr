@@ -6,9 +6,11 @@ from config.settings import Settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+import os
+
 # Using a dummy secret key for development. In production this should be in .env
 # For Trackr, we will default it if not provided in settings.
-SECRET_KEY = "trackr-super-secret-development-key-change-in-production"
+SECRET_KEY = os.getenv("SECRET_KEY", "trackr-super-secret-development-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 

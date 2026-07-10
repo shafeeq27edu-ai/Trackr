@@ -30,5 +30,14 @@ def job_manager():
 @pytest.fixture
 def client():
     # TestClient will automatically call startup/shutdown lifespan events
+    from api.deps import get_current_user
+    from db.models import User
+    
+    # Override get_current_user to bypass authentication in tests
+    dummy_user = User(id="test-user-id", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: dummy_user
+    
     with TestClient(app) as test_client:
         yield test_client
+        
+    app.dependency_overrides.clear()

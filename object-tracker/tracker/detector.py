@@ -40,9 +40,13 @@ class YoloDetectorPlugin(BaseDetector):
     def load_model(self, device: str = "cpu"):
         """Loads the weights into memory."""
         self.device = device
-        self.model = YOLO(self.model_name)
-        if device:
-            self.model.to(device)
+        try:
+            self.model = YOLO(self.model_name)
+            if device:
+                self.model.to(device)
+        except Exception as e:
+            from core.exceptions import ModelLoadingError
+            raise ModelLoadingError(f"Failed to load model {self.model_name}: {str(e)}")
     
     def detect(self, frame: np.ndarray, conf_threshold: float = 0.25) -> sv.Detections:
         """

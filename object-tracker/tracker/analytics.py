@@ -69,6 +69,10 @@ class AnalyticsEnginePlugin(BaseAnalytics):
                 
             self.zone_states[zone_id][t_id] = is_in_zone
 
+    def process_detections(self, detections: sv.Detections, class_names: Dict[int, str], frame_idx: int) -> None:
+        """Alias for process_frame to maintain backward compatibility."""
+        self.process_frame(detections, class_names, frame_idx)
+
     def process_frame(self, detections: sv.Detections, class_names: Dict[int, str], frame_idx: int) -> None:
         """
         Updates unique counts, dwell times, and logs detection events to the CSV.

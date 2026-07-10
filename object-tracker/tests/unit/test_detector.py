@@ -13,26 +13,42 @@ def mock_yolo_model():
         # Mock the predict method to return a dummy result
         mock_result = MagicMock()
         mock_box = MagicMock()
-        mock_box.xyxy = np.array([[10, 10, 50, 50]])
-        mock_box.conf = np.array([0.9])
-        mock_box.cls = np.array([0])
+        
+        mock_xyxy = MagicMock()
+        mock_xyxy.cpu.return_value.numpy.return_value = np.array([[10, 10, 50, 50]])
+        mock_box.xyxy = mock_xyxy
+        
+        mock_conf = MagicMock()
+        mock_conf.cpu.return_value.numpy.return_value = np.array([0.9])
+        mock_box.conf = mock_conf
+        
+        mock_cls = MagicMock()
+        mock_cls.cpu.return_value.numpy.return_value = np.array([0])
+        mock_box.cls = mock_cls
+        
+        mock_box.id = None
         mock_result.boxes = mock_box
+        mock_result.masks = None
         
         mock_instance.predict.return_value = [mock_result]
+        mock_instance.return_value = [mock_result]
         MockYOLO.return_value = mock_instance
         yield MockYOLO
 
 def test_yolo_detector_initialization(mock_yolo_model):
     detector = YoloDetector("dummy_path.pt")
+    detector.load_model()
     mock_yolo_model.assert_called_once_with("dummy_path.pt")
     assert detector.model.names[0] == "person"
 
 def test_yolo_detector_invalid_path():
+    detector = YoloDetector("non_existent_path.pt")
     with pytest.raises(ModelLoadingError):
-        YoloDetector("non_existent_path.pt")
+        detector.load_model()
 
 def test_yolo_detector_inference(mock_yolo_model):
     detector = YoloDetector("dummy_path.pt")
+    detector.load_model()
     dummy_frame = np.zeros((100, 100, 3), dtype=np.uint8)
     
     detections = detector.detect(dummy_frame)

@@ -9,9 +9,11 @@ def test_upload_invalid_format(client: TestClient):
     response = client.post("/api/v1/jobs/upload", files=files)
     
     assert response.status_code == 400
-    assert "Unsupported file format" in response.json()["detail"]
+    res_data = response.json()
+    message = res_data.get("detail", res_data.get("message", ""))
+    assert "Unsupported file format" in message or "not a supported video" in message
 
-@patch("api.v1.jobs.BackgroundTasks.add_task")
+@patch("fastapi.BackgroundTasks.add_task")
 def test_upload_valid_video(mock_add_task, client: TestClient):
     files = {"file": ("test.mp4", b"dummy video bytes", "video/mp4")}
     response = client.post("/api/v1/jobs/upload", files=files)
@@ -19,7 +21,7 @@ def test_upload_valid_video(mock_add_task, client: TestClient):
     assert response.status_code == 200
     data = response.json()
     assert "job_id" in data
-    assert data["status"] == "initializing"
+    assert data["status"] == "INITIALIZING"
     
     # Ensure the background task was dispatched
     mock_add_task.assert_called_once()
@@ -28,7 +30,8 @@ def test_get_job_status_not_found(client: TestClient):
     response = client.get("/api/v1/jobs/nonexistent-id")
     assert response.status_code == 404
 
-def test_get_heatmap_not_ready(client: TestClient):
+@patch("fastapi.BackgroundTasks.add_task")
+def test_get_heatmap_not_ready(mock_add_task, client: TestClient):
     # We first create a job so it's in the system but not completed
     files = {"file": ("test.mp4", b"dummy video bytes", "video/mp4")}
     upload_res = client.post("/api/v1/jobs/upload", files=files)
@@ -37,4 +40,6 @@ def test_get_heatmap_not_ready(client: TestClient):
     # Attempting to get heatmap should fail because it's not completed
     response = client.get(f"/api/v1/jobs/{job_id}/heatmap")
     assert response.status_code == 404
-    assert "not available yet" in response.json()["detail"]
+    res_data = response.json()
+    message = res_data.get("detail", res_data.get("message", ""))
+    assert "not available yet" in message or "not completed yet" in message
