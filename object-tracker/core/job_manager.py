@@ -46,8 +46,14 @@ class JobManager:
     def _sync_active_jobs_from_db(self):
         db = SessionLocal()
         try:
-            # We could load active jobs here if needed, but for now we trust new requests.
-            pass
+            active_jobs = db.query(JobDB).filter(JobDB.status.in_([JobStatus.QUEUED.value, JobStatus.INITIALIZING.value, JobStatus.PROCESSING.value])).all()
+            for db_job in active_jobs:
+                db_job.status = JobStatus.FAILED.value
+                db_job.error = "Job aborted due to server restart."
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error syncing active jobs: {e}")
         finally:
             db.close()
 
@@ -68,8 +74,8 @@ class JobManager:
             db.add(db_job)
             db.commit()
         except Exception as e:
-            # log exception
-            pass
+            db.rollback()
+            logger.error(f"Failed to create job in DB: {e}")
         finally:
             db.close()
             
@@ -175,6 +181,9 @@ class JobManager:
                 db_job.average_fps = job.average_fps
                 db_job.processing_throughput = job.processing_throughput
                 db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to update job in DB: {e}")
         finally:
             db.close()
             
@@ -197,9 +206,48 @@ class JobManager:
                 db.delete(db_job)
                 db.commit()
                 return True
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to delete job in DB: {e}")
         finally:
             db.close()
         return False
 
     def list_jobs(self) -> Dict[str, Job]:
-        return self._jobs
+        db = SessionLocal()
+        try:
+            db_jobs = db.query(JobDB).order_by(JobDB.start_time.desc()).all()
+            jobs = {}
+            for db_job in db_jobs:
+                analytics = None
+                if db_job.analytics:
+                    analytics = json.loads(db_job.analytics)
+                job = Job(
+                    id=db_job.id,
+                    filename=db_job.filename,
+                    status=JobStatus(db_job.status),
+                    progress=db_job.progress,
+                    stage=db_job.stage,
+                    start_time=db_job.start_time,
+                    completion_time=db_job.completion_time,
+                    duration=db_job.duration,
+                    error=db_job.error,
+                    output_path=db_job.output_path,
+                    analytics=analytics,
+                    average_fps=db_job.average_fps,
+                    processing_throughput=db_job.processing_throughput,
+                    user_id=db_job.user_id,
+                    project_id=db_job.project_id
+                )
+                jobs[job.id] = job
+            
+            # Merge active memory jobs that might be more up-to-date
+            for job_id, mem_job in self._jobs.items():
+                if job_id not in jobs or jobs[job_id].status != mem_job.status or jobs[job_id].progress != mem_job.progress:
+                    jobs[job_id] = mem_job
+            return jobs
+        except Exception as e:
+            logger.error(f"Failed to list jobs from DB: {e}")
+            return self._jobs
+        finally:
+            db.close()

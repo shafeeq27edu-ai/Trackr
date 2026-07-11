@@ -68,6 +68,7 @@ app.include_router(health.router, prefix="/api/v1/system", tags=["health"])
 app.include_router(models.router, prefix="/api/v1", tags=["models"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["plugins"])
 app.include_router(enterprise.router, prefix="/api/v1", tags=["enterprise"])
+app.include_router(streams.router, prefix="/api/v1/streams", tags=["streams"])
 
 # Mount Prometheus metrics
 Instrumentator().instrument(app).expose(app)

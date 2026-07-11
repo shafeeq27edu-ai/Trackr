@@ -114,15 +114,17 @@ def process_video_file(
         codec = "avc1"
         try:
             # Quick check if avc1 is supported
-            test_sink = sv.VideoSink(target_path=output_path, video_info=video_info, codec="avc1")
-            test_sink.writer = cv2.VideoWriter(
+            test_writer = cv2.VideoWriter(
                 output_path,
                 cv2.VideoWriter_fourcc(*"avc1"),
                 video_info.fps,
                 video_info.resolution_wh,
             )
-            if not test_sink.writer.isOpened():
+            if not test_writer.isOpened():
                 codec = "mp4v"
+            test_writer.release()
+            if os.path.exists(output_path):
+                os.remove(output_path)
         except Exception:
             codec = "mp4v"
 
@@ -190,16 +192,8 @@ def process_video_file(
                 # 6. Save to output video
                 sink.write_frame(frame=annotated_frame)
                 
-                # Cleanup frame memory
-                del frame
-                del annotated_frame
-                
+                # Cleanup frame memory (let Python handle it automatically)
                 frame_idx += 1
-                
-                # Periodic memory garbage collection
-                if frame_idx % 100 == 0:
-                    import gc
-                    gc.collect()
                 
                 # Update Job Progress (throttle updates)
                 if frame_idx % 10 == 0 or frame_idx == total_frames:

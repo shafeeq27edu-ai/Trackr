@@ -76,7 +76,7 @@ def delete_stream(stream_id: str, stream_manager: StreamManager = Depends(get_st
     raise HTTPException(status_code=404, detail="Stream not found")
 
 @router.post("/{stream_id}/record")
-def record_stream(stream_id: str, stream_manager: StreamManager = Depends(get_stream_manager)):
+def record_stream(stream_id: str, stream_manager: StreamManager = Depends(get_stream_manager), current_user: User = Depends(get_current_user)):
     stream = stream_manager.get_stream(stream_id)
     if not stream:
         raise HTTPException(status_code=404, detail="Stream not found")
@@ -89,7 +89,7 @@ def record_stream(stream_id: str, stream_manager: StreamManager = Depends(get_st
     return {"message": "Recording started", "path": recording_path}
 
 @router.post("/{stream_id}/stop_record")
-def stop_record_stream(stream_id: str, stream_manager: StreamManager = Depends(get_stream_manager)):
+def stop_record_stream(stream_id: str, stream_manager: StreamManager = Depends(get_stream_manager), current_user: User = Depends(get_current_user)):
     stream = stream_manager.get_stream(stream_id)
     if not stream:
         raise HTTPException(status_code=404, detail="Stream not found")
@@ -100,7 +100,22 @@ def stop_record_stream(stream_id: str, stream_manager: StreamManager = Depends(g
 # --- WebSockets ---
 
 @router.websocket("/live/{stream_id}")
-async def websocket_live_stream(websocket: WebSocket, stream_id: str, stream_manager: StreamManager = Depends(get_stream_manager)):
+async def websocket_live_stream(websocket: WebSocket, stream_id: str, token: str = None, stream_manager: StreamManager = Depends(get_stream_manager)):
+    if not token:
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
+        
+    try:
+        from core.security import SECRET_KEY, ALGORITHM
+        import jwt
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if not payload.get("user_id"):
+            await websocket.close(code=4001, reason="Unauthorized")
+            return
+    except Exception:
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
+
     stream = stream_manager.get_stream(stream_id)
     if not stream:
         await websocket.close(code=4004, reason="Stream not found")

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from typing import List, Dict, Any
-from core.events import event_bus
+from core.events import event_bus, EventType
 from core.storage.manager import storage_manager
 from config.settings import settings
 from api.deps import get_current_user
@@ -15,13 +15,15 @@ def _capture_event(payload):
     if len(_event_history) > 100:
         _event_history.pop(0)
 
+
+
 # Subscribe to some events
 # Note: we pass dummy functions since EventBus accepts (payload)
-event_bus.subscribe("JobCreated", lambda p: _capture_event({"type": "JobCreated", "payload": p}))
-event_bus.subscribe("JobStarted", lambda p: _capture_event({"type": "JobStarted", "payload": p}))
-event_bus.subscribe("JobCompleted", lambda p: _capture_event({"type": "JobCompleted", "payload": p}))
-event_bus.subscribe("PluginLoaded", lambda p: _capture_event({"type": "PluginLoaded", "payload": p}))
-event_bus.subscribe("ModelLoaded", lambda p: _capture_event({"type": "ModelLoaded", "payload": p}))
+event_bus.subscribe(EventType.JOB_CREATED, lambda p: _capture_event({"type": "JobCreated", "payload": p}))
+event_bus.subscribe(EventType.JOB_STARTED, lambda p: _capture_event({"type": "JobStarted", "payload": p}))
+event_bus.subscribe(EventType.JOB_COMPLETED, lambda p: _capture_event({"type": "JobCompleted", "payload": p}))
+event_bus.subscribe(EventType.PLUGIN_LOADED, lambda p: _capture_event({"type": "PluginLoaded", "payload": p}))
+event_bus.subscribe(EventType.MODEL_LOADED, lambda p: _capture_event({"type": "ModelLoaded", "payload": p}))
 
 @router.get("/system/events")
 def list_events(current_user: User = Depends(get_current_user)):

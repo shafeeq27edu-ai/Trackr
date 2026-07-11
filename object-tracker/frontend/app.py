@@ -396,23 +396,22 @@ with tab_live:
                     view_btn = st.button("👀 View Live Feed", key=f"view_{s['id']}")
                     if view_btn:
                         st.write(f"Viewing Stream {s['id']}")
-                        image_placeholder = st.empty()
-                        
-                        import asyncio
-                        import websockets
-                        
-                        async def view_stream():
-                            # NOTE: For websockets, we usually pass token in URL. For MVP, we ignore WS auth or add it if implemented
-                            uri = f"ws://localhost:8000/api/v1/streams/live/{s['id']}"
-                            try:
-                                async with websockets.connect(uri) as websocket:
-                                    while True:
-                                        data = await websocket.recv()
-                                        msg = json.loads(data)
-                                        frame_data = msg["frame"]
-                                        image_placeholder.image(f"data:image/jpeg;base64,{frame_data}", use_container_width=True)
-                            except Exception as e:
-                                st.error(f"WebSocket closed: {e}")
-                                
-                        asyncio.run(view_stream())
+                        import streamlit.components.v1 as components
+                        html_code = f"""
+                        <!DOCTYPE html>
+                        <html>
+                        <body style="margin:0; padding:0; background-color:#0e1117; display: flex; justify-content: center;">
+                            <img id="videoStream" style="max-width: 100%; height: auto;" />
+                            <script>
+                                var ws = new WebSocket("ws://localhost:8000/api/v1/streams/live/{s['id']}?token={st.session_state.token}");
+                                var img = document.getElementById("videoStream");
+                                ws.onmessage = function(event) {{
+                                    var data = JSON.parse(event.data);
+                                    img.src = "data:image/jpeg;base64," + data.frame;
+                                }};
+                            </script>
+                        </body>
+                        </html>
+                        """
+                        components.html(html_code, height=600)
                 st.divider()

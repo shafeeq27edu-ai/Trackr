@@ -1,0 +1,7 @@
+.env
+trackr.db
+*.db
+.coverage
+htmlcov/
+outputs/
+data/sample_videos/

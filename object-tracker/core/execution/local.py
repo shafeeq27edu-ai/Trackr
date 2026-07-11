@@ -43,6 +43,3 @@ class LocalExecutionBackend(ExecutionBackend):
                 return {"status": "failed", "error": str(future.exception())}
             return {"status": "completed"}
         return {"status": "pending"}
-
-# Global instance
-local_backend = LocalExecutionBackend()

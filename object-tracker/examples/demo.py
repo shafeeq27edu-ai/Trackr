@@ -26,7 +26,7 @@ def main():
     analytics = AnalyticsEngine()
     
     # Initialize annotators
-    box_annotator = sv.BoxAnnotator()
+    box_annotator = sv.BoundingBoxAnnotator()
     label_annotator = sv.LabelAnnotator()
     trace_annotator = sv.TraceAnnotator()
     

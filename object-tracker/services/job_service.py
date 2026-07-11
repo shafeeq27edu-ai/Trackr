@@ -36,8 +36,11 @@ class JobService:
         input_filename = f"{job.id}_{file.filename}"
         output_filename = f"tracked_{job.id}_{file.filename}"
         
+        job_output_dir = os.path.join(self.settings.output_dir, str(job.id))
+        os.makedirs(job_output_dir, exist_ok=True)
+        
         input_path = os.path.join(self.settings.temp_dir, input_filename)
-        output_path = os.path.join(self.settings.output_dir, output_filename)
+        output_path = os.path.join(job_output_dir, output_filename)
         
         # Save the uploaded file to disk
         with open(input_path, "wb") as buffer:

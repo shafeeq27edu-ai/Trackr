@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import functools
 
 # Fix for PyTorch 2.6+ weights_only=True default breaking older ultralytics
 original_load = torch.load
@@ -40,13 +39,11 @@ class YoloDetectorPlugin(BaseDetector):
     def load_model(self, device: str = "cpu"):
         """Loads the weights into memory."""
         self.device = device
-        self.use_half = device in ["cuda", "mps"]
+        self.use_half = device == "cuda"
         try:
             self.model = YOLO(self.model_name)
             if device:
                 self.model.to(device)
-                if self.use_half:
-                    self.model.half()
         except Exception as e:
             from core.exceptions import ModelLoadingError
             raise ModelLoadingError(f"Failed to load model {self.model_name}: {str(e)}")

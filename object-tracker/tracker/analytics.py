@@ -50,9 +50,9 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         self.track_directions: Dict[int, str] = {} # tracker_id -> last_direction
         
         # Initialize the CSV file with headers
-        with open(self.csv_path, mode='w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["timestamp", "frame_idx", "track_id", "class_name", "center_x", "center_y", "speed_kmh", "direction"])
+        self._csv_file = open(self.csv_path, mode='w', newline='')
+        self._csv_writer = csv.writer(self._csv_file)
+        self._csv_writer.writerow(["timestamp", "frame_idx", "track_id", "class_name", "center_x", "center_y", "speed_kmh", "direction"])
             
     def register_zone(self, zone_id: str):
         """Registers a zone for entry/exit tracking."""
@@ -94,10 +94,7 @@ class AnalyticsEnginePlugin(BaseAnalytics):
             
         self.total_detections += current_occupancy
         
-        with open(self.csv_path, mode='a', newline='') as f:
-            writer = csv.writer(f)
-            
-            for class_id, tracker_id, bbox in zip(detections.class_id, detections.tracker_id, detections.xyxy):
+        for class_id, tracker_id, bbox in zip(detections.class_id, detections.tracker_id, detections.xyxy):
                 class_name = class_names[class_id]
                 self.tracker_classes[tracker_id] = class_name
                 
@@ -116,10 +113,12 @@ class AnalyticsEnginePlugin(BaseAnalytics):
                 center_x = (bbox[0] + bbox[2]) / 2.0
                 center_y = (bbox[1] + bbox[3]) / 2.0
                 
-                # Maintain position history
+                # Maintain position history (capped to last 10 entries)
                 if tracker_id not in self.track_history:
                     self.track_history[tracker_id] = []
                 self.track_history[tracker_id].append((center_x, center_y, frame_idx))
+                if len(self.track_history[tracker_id]) > 10:
+                    self.track_history[tracker_id] = self.track_history[tracker_id][-10:]
                 
                 # Calculate Speed & Direction (smoothed over 5 frames)
                 speed_kmh = 0.0
@@ -145,12 +144,11 @@ class AnalyticsEnginePlugin(BaseAnalytics):
                             direction = "South" if dy > 0 else "North" # y-down
                             
                 self.track_directions[tracker_id] = direction
-                if tracker_id not in self.track_speeds:
-                    self.track_speeds[tracker_id] = []
-                self.track_speeds[tracker_id].append(speed_kmh)
+                # Cap track_speeds to last entry only
+                self.track_speeds[tracker_id] = [speed_kmh]
                 
                 # Log to CSV
-                writer.writerow([current_time, frame_idx, tracker_id, class_name, f"{center_x:.2f}", f"{center_y:.2f}", f"{speed_kmh:.2f}", direction])
+                self._csv_writer.writerow([current_time, frame_idx, tracker_id, class_name, f"{center_x:.2f}", f"{center_y:.2f}", f"{speed_kmh:.2f}", direction])
 
     def get_track_speed(self, tracker_id: int) -> float:
         """Returns the last calculated speed for a track (in km/h)."""
@@ -234,12 +232,25 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         with open(self.summary_path, "w") as f:
             json.dump(summary, f, indent=4)
             
+        # Close persistent CSV writer
+        if hasattr(self, '_csv_file') and not self._csv_file.closed:
+            self._csv_file.close()
+            
         logger.info(f"Session summary generated at {self.summary_path}")
         return summary
         
     def reset(self) -> None:
         """Reset the analytics state."""
         self.unique_counts.clear()
+        self.peak_occupancy = 0
+        self.total_detections = 0
+        self.dwell_times.clear()
+        self.tracker_classes.clear()
+        self.zone_states.clear()
+        self.zone_stats.clear()
+        self.track_history.clear()
+        self.track_speeds.clear()
+        self.track_directions.clear()
 
 # Backward compatibility alias
 AnalyticsEngine = AnalyticsEnginePlugin

@@ -49,8 +49,9 @@ class EventBus:
                         loop = asyncio.get_running_loop()
                         loop.create_task(callback(payload))
                     except RuntimeError:
-                        # If no running loop, run it synchronously if possible, or log
-                        asyncio.run(callback(payload))
+                        # If no running loop, run it in a new thread to avoid blocking or crashing
+                        import threading
+                        threading.Thread(target=lambda: asyncio.run(callback(payload)), daemon=True).start()
                 else:
                     callback(payload)
             except Exception as e:

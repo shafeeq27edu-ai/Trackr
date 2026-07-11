@@ -143,9 +143,6 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
             
             frames_processed += 1
             
-            del frame
-            del annotated_frame
-            
             # Yield to event loop to allow websockets to transmit
             await asyncio.sleep(0.001)
 
@@ -157,6 +154,7 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
         if stream and hasattr(stream, "writer") and stream.writer:
             stream.writer.release()
             stream.writer = None
-        if stream_manager.get_stream(stream_id).status != StreamStatus.FAILED:
+        stream = stream_manager.get_stream(stream_id)
+        if stream and stream.status != StreamStatus.FAILED:
             stream_manager.update_stream(stream_id, status=StreamStatus.STOPPED)
         logger.info(f"Stream {stream_id} stopped.")
