@@ -82,7 +82,7 @@ def process_video_file(
     zones = load_zones(zones_file, video_info.resolution_wh)
     
     # Initialize annotators
-    box_annotator = sv.BoxAnnotator()
+    box_annotator = sv.BoundingBoxAnnotator()
     label_annotator = sv.LabelAnnotator()
     
     # Trace with configurable fading/length
@@ -110,7 +110,23 @@ def process_video_file(
             heatmap_canvas = np.zeros((video_info.height, video_info.width, 3), dtype=np.uint8)
         
         # Process the video frame by frame
-        with sv.VideoSink(target_path=output_path, video_info=video_info) as sink:
+        # Attempt H.264 (avc1) first for better browser compatibility, fallback to mp4v if needed
+        codec = "avc1"
+        try:
+            # Quick check if avc1 is supported
+            test_sink = sv.VideoSink(target_path=output_path, video_info=video_info, codec="avc1")
+            test_sink.writer = cv2.VideoWriter(
+                output_path,
+                cv2.VideoWriter_fourcc(*"avc1"),
+                video_info.fps,
+                video_info.resolution_wh,
+            )
+            if not test_sink.writer.isOpened():
+                codec = "mp4v"
+        except Exception:
+            codec = "mp4v"
+
+        with sv.VideoSink(target_path=output_path, video_info=video_info, codec=codec) as sink:
             frame_idx = 0
             for frame in sv.get_video_frames_generator(input_path):
                 # 1. Detect objects
@@ -130,17 +146,24 @@ def process_video_file(
                         is_in_zone = z["zone_obj"].trigger(detections=detections)
                         analytics.process_zone_triggers(z["id"], is_in_zone, detections.tracker_id)
                 
-                # 4. Annotate
-                annotated_frame = frame.copy()
+                # 4. Annotate (optimize: direct modification is safe as generator frames are not reused)
+                annotated_frame = frame
                 
                 if use_heatmap and has_tracks:
                     heatmap_canvas = heatmap_annotator.annotate(scene=heatmap_canvas, detections=detections)
                 
                 if has_tracks:
-                    labels = [
-                        f"#{tracker_id} {detector.model.names[class_id]} {confidence:.2f}"
-                        for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id)
-                    ]
+                    labels = []
+                    for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id):
+                        speed = analytics.get_track_speed(tracker_id)
+                        direction = analytics.get_track_direction(tracker_id)
+                        
+                        label_parts = [f"#{tracker_id} {detector.model.names[class_id]}"]
+                        if speed > 0:
+                            label_parts.append(f"{speed:.1f} km/h")
+                        if direction != "Unknown":
+                            label_parts.append(direction)
+                        labels.append(" | ".join(label_parts))
                     
                     annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
                     annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
@@ -172,6 +195,11 @@ def process_video_file(
                 del annotated_frame
                 
                 frame_idx += 1
+                
+                # Periodic memory garbage collection
+                if frame_idx % 100 == 0:
+                    import gc
+                    gc.collect()
                 
                 # Update Job Progress (throttle updates)
                 if frame_idx % 10 == 0 or frame_idx == total_frames:

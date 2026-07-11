@@ -1,36 +1,43 @@
 import os
+from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 class Settings(BaseSettings):
-    environment: str = "development" # development, testing, staging, production
+    environment: str = Field("development", description="development, testing, staging, production")
     
-    yolo_model_path: str = "yolov8n.pt"
-    confidence_threshold: float = 0.3
+    yolo_model_path: str = Field("yolov8n.pt", description="Path to YOLO model")
+    confidence_threshold: float = Field(0.3, ge=0.0, le=1.0)
     hardware_acceleration: str = "auto"
     
     # Storage settings
-    storage_provider: str = "local" # local, s3, gcs
+    storage_provider: str = Field("local", description="local, s3, gcs")
     temp_dir: str = "data/temp"
     output_dir: str = "outputs/api"
     
     # Execution settings
-    execution_backend: str = "local" # local, celery, ray
-    max_workers: int = 4
+    execution_backend: str = Field("local", description="local, celery, ray")
+    max_workers: int = Field(4, gt=0)
     
     # Logging
     log_dir: str = "outputs"
     log_level: str = "INFO"
     log_format: str = "text"
+    
+    # Model Cache
+    max_cached_models: int = Field(2, gt=0)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-# Load base settings
-settings = Settings()
+@lru_cache()
+def get_cached_settings() -> Settings:
+    """Returns a cached instance of the settings."""
+    settings = Settings()
+    env_specific_file = f".env.{settings.environment}"
+    if os.path.exists(env_specific_file):
+        class EnvSpecificSettings(Settings):
+            model_config = SettingsConfigDict(env_file=[".env", env_specific_file], env_file_encoding="utf-8", extra="ignore")
+        return EnvSpecificSettings()
+    return settings
 
-# Support for environment-specific overrides (e.g. .env.production)
-env_specific_file = f".env.{settings.environment}"
-if os.path.exists(env_specific_file):
-    # This allows reloading settings with the specific environment file
-    class EnvSpecificSettings(Settings):
-        model_config = SettingsConfigDict(env_file=[".env", env_specific_file], env_file_encoding="utf-8", extra="ignore")
-    settings = EnvSpecificSettings()
+settings = get_cached_settings()

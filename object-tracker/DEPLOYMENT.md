@@ -36,6 +36,26 @@ Since Trackr consists of two services (Backend and Frontend), you can deploy the
 - **Env Vars**: Set `API_BASE_URL` to the internal URL of your backend service (e.g., `http://backend:8000/api/v1`).
 
 ## Monitoring & Observability
-- **Health Checks**: Trackr exposes `/api/v1/system/health`, `/ready`, and `/live` for load balancer probes.
+- **Health Checks**: Trackr exposes three standard probes for container orchestration:
+  - `/api/v1/system/health`: Basic alive ping for load balancers.
+  - `/api/v1/system/live`: Container lifecycle liveness check.
+  - `/api/v1/system/ready`: Readiness check that verifies active database connection and validates model loading.
+- **Docker Compose Health Probe**: Since python base images are slim, construct the compose health check using Python's native `urllib`:
+  ```yaml
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/system/health')"]
+  ```
 - **Metrics**: A Prometheus metrics endpoint is available at `/metrics`.
 - **Logs**: Set `LOG_FORMAT=json` in production to output structured logs compatible with Datadog, ELK, or CloudWatch.
+
+## Production Resource Allocation
+- **GPU Acceleration**: If running with CUDA support on NVIDIA hardware, ensure the `nvidia-container-toolkit` is configured and pass resource options to `docker-compose`:
+  ```yaml
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+  ```
+- **Database Locks**: SQLite is used for database persistence. For production deployments with high concurrent writes, ensure `/app/trackr.db` is stored on a persistent volume with standard POSIX lock support (avoid networked mounts like NFS/SMB which degrade SQLite locking performance).

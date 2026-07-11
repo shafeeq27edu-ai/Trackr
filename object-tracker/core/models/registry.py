@@ -21,6 +21,7 @@ class ModelRegistry:
             cls._instance = super(ModelRegistry, cls).__new__(cls)
             cls._instance._models: Dict[str, BaseDetector] = {}
             cls._instance._loaded_instances: Dict[str, BaseDetector] = {}
+            cls._instance._loaded_order: List[str] = []
             cls._instance._lock = threading.Lock()
             cls._instance.device = cls._instance._detect_device()
         return cls._instance
@@ -57,6 +58,12 @@ class ModelRegistry:
         """
         Retrieves a loaded model, loading it if necessary.
         """
+        from config.settings import get_cached_settings
+        import gc
+        
+        settings = get_cached_settings()
+        max_cached = getattr(settings, "max_cached_models", 2)
+
         with self._lock:
             if model_id not in self._models:
                 # If not explicitly registered, we could try to instantiate a generic YOLO fallback,
@@ -72,11 +79,31 @@ class ModelRegistry:
                     raise ValueError(f"Model {model_id} is not registered in the ModelRegistry.")
 
             if model_id not in self._loaded_instances:
+                # Evict oldest model if cache limit is exceeded
+                while len(self._loaded_instances) >= max_cached and self._loaded_order:
+                    oldest_id = self._loaded_order.pop(0)
+                    if oldest_id in self._loaded_instances:
+                        logger.info(f"Evicting model '{oldest_id}' from memory cache.")
+                        oldest_instance = self._loaded_instances.pop(oldest_id)
+                        # Clear model weights and release resources
+                        if hasattr(oldest_instance, "model"):
+                            oldest_instance.model = None
+                        
+                        gc.collect()
+                        if self.device == "cuda":
+                            torch.cuda.empty_cache()
+
                 logger.info(f"Loading model into memory: {model_id} on {self.device}")
                 instance = self._models[model_id]
                 instance.load_model(device=self.device)
                 self._loaded_instances[model_id] = instance
+                self._loaded_order.append(model_id)
                 event_bus.publish(EventType.MODEL_LOADED, {"model_id": model_id, "device": self.device})
+            else:
+                # Move to the end of LRU cache order
+                if model_id in self._loaded_order:
+                    self._loaded_order.remove(model_id)
+                self._loaded_order.append(model_id)
 
             return self._loaded_instances[model_id]
 

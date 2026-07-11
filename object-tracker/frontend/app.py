@@ -6,6 +6,35 @@ import json
 
 st.set_page_config(page_title="Trackr Advanced Analytics", page_icon="🎥", layout="wide")
 
+# Custom Premium Styling
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+}
+.stMetric {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 15px 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+div[data-testid="stExpander"] {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.stButton>button {
+    border-radius: 6px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 import os
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
@@ -79,8 +108,9 @@ if not st.session_state.token:
 st.title("🎥 Trackr: Advanced Intelligence & Analytics")
 
 # --- Sidebar ---
-st.sidebar.title(f"👤 {st.session_state.user.get('name', 'User')}")
-st.sidebar.write(st.session_state.user.get('email'))
+user_data = st.session_state.user or {}
+st.sidebar.title(f"👤 {user_data.get('name', 'User')}")
+st.sidebar.write(user_data.get('email', ''))
 if st.sidebar.button("Logout"):
     logout()
 st.sidebar.divider()
@@ -136,6 +166,34 @@ with tab_batch:
     if not st.session_state.selected_project_id:
         st.warning("Please create or select a project from the sidebar first.")
     else:
+        # Load jobs first to display dashboard metrics
+        jobs_res = requests.get(f"{API_BASE_URL}/jobs", headers=get_auth_headers())
+        proj_jobs = []
+        if jobs_res.status_code == 200:
+            all_jobs = jobs_res.json().get("jobs", [])
+            proj_jobs = [j for j in all_jobs if j.get("project_id") == st.session_state.selected_project_id]
+            
+        # Display Workspace Dashboard Metrics
+        if proj_jobs:
+            completed_jobs = [j for j in proj_jobs if j.get("status") == "COMPLETED"]
+            total_count = len(proj_jobs)
+            success_count = len(completed_jobs)
+            failed_count = len([j for j in proj_jobs if j.get("status") == "FAILED"])
+            
+            avg_fps = 0.0
+            if completed_jobs:
+                avg_fps = sum(j.get("average_fps", 0.0) or 0.0 for j in completed_jobs) / len(completed_jobs)
+                
+            success_rate = (success_count / (total_count - len([j for j in proj_jobs if j.get("status") in ["INITIALIZING", "PROCESSING"]])) * 100) if total_count > 0 and (total_count - len([j for j in proj_jobs if j.get("status") in ["INITIALIZING", "PROCESSING"]])) > 0 else 100.0
+
+            st.write("### 📁 Workspace Performance")
+            m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+            m_col1.metric("Total Jobs Run", total_count)
+            m_col2.metric("Success Rate", f"{success_rate:.1f}%")
+            m_col3.metric("Failed Runs", failed_count)
+            m_col4.metric("Average Speed", f"{avg_fps:.1f} FPS")
+            st.divider()
+
         uploaded_file = st.file_uploader("Upload a video file (.mp4)", type=["mp4"])
         if uploaded_file is not None:
             if st.button("Process Video"):
@@ -153,6 +211,8 @@ with tab_batch:
                     progress_bar = st.progress(0.0)
                     status_text = st.empty()
                     
+                    start_process_time = time.time()
+                    
                     while True:
                         time.sleep(1)
                         status_res = requests.get(f"{API_BASE_URL}/jobs/{job_id}", headers=get_auth_headers())
@@ -162,12 +222,29 @@ with tab_batch:
                             stage = job.get("stage", "")
                             progress = job.get("progress", 0.0)
                             
+                            elapsed = time.time() - start_process_time
+                            
+                            # Estimate ETA
+                            if progress > 0:
+                                rate = progress / elapsed  # progress % per second
+                                remaining = 100.0 - progress
+                                eta_seconds = remaining / rate
+                                eta_str = time.strftime("%M:%S", time.gmtime(eta_seconds))
+                            else:
+                                eta_str = "--:--"
+                                
+                            current_fps_val = job.get("average_fps", 0.0) or 0.0
+                            
                             progress_val = min(max(progress / 100.0, 0.0), 1.0)
                             progress_bar.progress(progress_val)
-                            status_text.text(f"Status: {status} | Stage: {stage} | Progress: {progress:.1f}%")
+                            status_text.markdown(
+                                f"**Status:** `{status}` | **Stage:** {stage} | "
+                                f"**Progress:** {progress:.1f}% | **Speed:** {current_fps_val:.1f} FPS | "
+                                f"**Elapsed:** {time.strftime('%M:%S', time.gmtime(elapsed))} | **ETA:** {eta_str}"
+                            )
                             
                             if status == "COMPLETED":
-                                st.success("Video processing completed!")
+                                st.success("Video processing completed successfully!")
                                 break
                             elif status == "FAILED":
                                 st.error(f"Processing failed: {job.get('error')}")
@@ -178,26 +255,102 @@ with tab_batch:
                 else:
                     st.error(f"Failed to queue job: {response.text}")
                     
-        # List jobs for this project
+        # List jobs for this project (using the list fetched at the top)
         st.divider()
         st.subheader("Job History")
-        jobs_res = requests.get(f"{API_BASE_URL}/jobs", headers=get_auth_headers())
+        
         if jobs_res.status_code == 200:
-            all_jobs = jobs_res.json().get("jobs", [])
-            # Filter jobs matching current project manually for UI
-            proj_jobs = [j for j in all_jobs if j.get("project_id") == st.session_state.selected_project_id]
-            
             if not proj_jobs:
                 st.info("No jobs found in this project.")
             else:
                 for j in reversed(proj_jobs):
                     with st.expander(f"Job {j['id'][:8]}... - {j['filename']} ({j['status']})"):
                         if j['status'] == "COMPLETED":
-                            if st.button("Load Results", key=f"load_{j['id']}"):
-                                # Fetch analytics
-                                analytics_res = requests.get(f"{API_BASE_URL}/jobs/{j['id']}/analytics", headers=get_auth_headers())
-                                if analytics_res.status_code == 200:
-                                    st.json(analytics_res.json())
+                            # Load job details side-by-side: Video & Heatmap
+                            v_col1, v_col2 = st.columns(2)
+                            token_param = f"?token={st.session_state.token}"
+                            video_res_url = f"{API_BASE_URL}/jobs/{j['id']}/result{token_param}"
+                            heatmap_url = f"{API_BASE_URL}/jobs/{j['id']}/heatmap{token_param}"
+                            
+                            with v_col1:
+                                st.write("### 🎥 Processed Output")
+                                st.video(video_res_url)
+                            with v_col2:
+                                st.write("### 🔥 Activity Heatmap")
+                                st.image(heatmap_url, use_container_width=True)
+                                
+                            # Download grid
+                            d_col1, d_col2, d_col3 = st.columns(3)
+                            d_col1.link_button("📥 Download Video", video_res_url, use_container_width=True)
+                            d_col2.link_button("📥 Download Heatmap", heatmap_url, use_container_width=True)
+                            d_col3.link_button("📥 Download CSV Report", f"{API_BASE_URL}/jobs/{j['id']}/report{token_param}", use_container_width=True)
+                            
+                            # Render Analytics Dashboard
+                            analytics = j.get("analytics")
+                            if analytics:
+                                st.write("### 📊 Analytics Overview")
+                                tab_charts, tab_tables, tab_meta = st.tabs(["Count Charts", "Detailed Data", "Technical Metrics"])
+                                
+                                # Process analytics data
+                                traffic_stats = analytics.get("traffic_stats", {})
+                                video_stats = analytics.get("video_stats", {})
+                                class_distribution = analytics.get("class_distribution", {})
+                                dwell_times_sec = analytics.get("dwell_times_sec", {})
+                                speed_stats = analytics.get("speed_stats", {})
+                                
+                                with tab_charts:
+                                    c_col1, c_col2 = st.columns(2)
+                                    with c_col1:
+                                        st.write("#### Classification Count")
+                                        if class_distribution:
+                                            df_dist = pd.DataFrame(list(class_distribution.items()), columns=["Object Type", "Count"])
+                                            st.bar_chart(df_dist, x="Object Type", y="Count")
+                                        else:
+                                            st.info("No classification data found.")
+                                    with c_col2:
+                                        st.write("#### Average Speed (km/h)")
+                                        class_averages = speed_stats.get("class_averages_kmh", {}) if speed_stats else {}
+                                        if class_averages:
+                                            df_speeds = pd.DataFrame(list(class_averages.items()), columns=["Object Type", "Avg Speed (km/h)"])
+                                            st.bar_chart(df_speeds, x="Object Type", y="Avg Speed (km/h)")
+                                        else:
+                                            st.info("No speed data found.")
+                                        
+                                with tab_tables:
+                                    col_data = []
+                                    if traffic_stats:
+                                        col_data.extend([
+                                            {"Metric": k.replace("_", " ").title(), "Value": v}
+                                            for k, v in traffic_stats.items()
+                                        ])
+                                    if dwell_times_sec:
+                                        col_data.extend([
+                                            {"Metric": f"Dwell Time - {k.replace('_', ' ').title()}", "Value": f"{v}s"}
+                                            for k, v in dwell_times_sec.items()
+                                        ])
+                                    if speed_stats:
+                                        col_data.append(
+                                            {"Metric": "Global Average Speed", "Value": f"{speed_stats.get('average_speed_kmh', 0.0)} km/h"}
+                                        )
+                                        col_data.append(
+                                            {"Metric": "Global Maximum Speed", "Value": f"{speed_stats.get('maximum_speed_kmh', 0.0)} km/h"}
+                                        )
+                                    if col_data:
+                                        df_traffic = pd.DataFrame(col_data)
+                                        st.dataframe(df_traffic, use_container_width=True, hide_index=True)
+                                    else:
+                                        st.info("No traffic flow data found.")
+                                        
+                                with tab_meta:
+                                    if video_stats:
+                                        m1, m2, m3 = st.columns(3)
+                                        m1.metric("Total Frames", video_stats.get("total_frames", 0))
+                                        m2.metric("Avg Processing Speed", f"{video_stats.get('avg_processing_fps', 0.0):.1f} FPS")
+                                        m3.metric("Duration", f"{video_stats.get('processing_time_sec', 0.0):.1f}s")
+                            
+                        elif j['status'] == "FAILED":
+                            st.error(f"Job Failed: {j.get('error', 'Unknown Error')}")
+                            
                         if st.button("Delete Job", key=f"del_{j['id']}"):
                             requests.delete(f"{API_BASE_URL}/jobs/{j['id']}", headers=get_auth_headers())
                             st.rerun()

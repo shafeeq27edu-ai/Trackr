@@ -1,4 +1,5 @@
-from fastapi import Request
+from fastapi import Request, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from core.logging import logger
 
@@ -26,6 +27,19 @@ async def trackr_exception_handler(request: Request, exc: TrackrException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": True, "message": exc.message},
+    )
+
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": True, "message": exc.detail},
+    )
+
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = [{"loc": err["loc"], "msg": err["msg"], "type": err["type"]} for err in exc.errors()]
+    return JSONResponse(
+        status_code=422,
+        content={"error": True, "message": "Validation Error", "details": errors},
     )
 
 async def global_exception_handler(request: Request, exc: Exception):

@@ -40,10 +40,13 @@ class YoloDetectorPlugin(BaseDetector):
     def load_model(self, device: str = "cpu"):
         """Loads the weights into memory."""
         self.device = device
+        self.use_half = device in ["cuda", "mps"]
         try:
             self.model = YOLO(self.model_name)
             if device:
                 self.model.to(device)
+                if self.use_half:
+                    self.model.half()
         except Exception as e:
             from core.exceptions import ModelLoadingError
             raise ModelLoadingError(f"Failed to load model {self.model_name}: {str(e)}")
@@ -55,8 +58,9 @@ class YoloDetectorPlugin(BaseDetector):
         if self.model is None:
             raise RuntimeError("Model is not loaded. Call load_model() first.")
             
-        # Run inference on the frame
-        result = self.model(frame, verbose=False)[0]
+        # Run inference on the frame under inference_mode for memory/speed gains
+        with torch.inference_mode():
+            result = self.model(frame, verbose=False, half=self.use_half)[0]
         
         # Convert Ultralytics output to supervision Detections format
         detections = sv.Detections.from_ultralytics(result)

@@ -129,6 +129,7 @@ class JobManager:
             return None
             
         # Update memory model
+        old_status = job.status
         if status is not None:
             job.status = status
             if status in [JobStatus.COMPLETED, JobStatus.FAILED]:
@@ -139,7 +140,7 @@ class JobManager:
                     event_bus.publish(EventType.JOB_COMPLETED, {"job_id": job.id, "duration": job.duration})
                 else:
                     event_bus.publish(EventType.JOB_FAILED, {"job_id": job.id, "error": error})
-            elif status == JobStatus.PROCESSING and job.status != JobStatus.PROCESSING:
+            elif status == JobStatus.PROCESSING and old_status != JobStatus.PROCESSING:
                 event_bus.publish(EventType.JOB_STARTED, {"job_id": job.id})
                     
         if progress is not None:

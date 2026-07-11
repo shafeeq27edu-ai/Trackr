@@ -44,10 +44,15 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         self.zone_states: Dict[str, Dict[int, bool]] = {} # zone_id -> {tracker_id -> bool (is_in_zone)}
         self.zone_stats: Dict[str, Dict[str, int]] = {} # zone_id -> {'entries': 0, 'exits': 0}
         
+        # Speed and direction state
+        self.track_history: Dict[int, List[Tuple[float, float, int]]] = {} # tracker_id -> [(cx, cy, frame_idx)]
+        self.track_speeds: Dict[int, List[float]] = {} # tracker_id -> [speed_kmh]
+        self.track_directions: Dict[int, str] = {} # tracker_id -> last_direction
+        
         # Initialize the CSV file with headers
         with open(self.csv_path, mode='w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(["timestamp", "frame_idx", "track_id", "class_name", "center_x", "center_y"])
+            writer.writerow(["timestamp", "frame_idx", "track_id", "class_name", "center_x", "center_y", "speed_kmh", "direction"])
             
     def register_zone(self, zone_id: str):
         """Registers a zone for entry/exit tracking."""
@@ -111,8 +116,50 @@ class AnalyticsEnginePlugin(BaseAnalytics):
                 center_x = (bbox[0] + bbox[2]) / 2.0
                 center_y = (bbox[1] + bbox[3]) / 2.0
                 
+                # Maintain position history
+                if tracker_id not in self.track_history:
+                    self.track_history[tracker_id] = []
+                self.track_history[tracker_id].append((center_x, center_y, frame_idx))
+                
+                # Calculate Speed & Direction (smoothed over 5 frames)
+                speed_kmh = 0.0
+                direction = "Unknown"
+                history = self.track_history[tracker_id]
+                
+                if len(history) >= 5:
+                    prev_x, prev_y, prev_frame = history[-5]
+                    dx = center_x - prev_x
+                    dy = center_y - prev_y
+                    frame_diff = frame_idx - prev_frame
+                    
+                    if frame_diff > 0:
+                        dt = frame_diff / self.fps
+                        dist_px = (dx**2 + dy**2)**0.5
+                        # Conversion: 0.05 meters/pixel and 3.6 for km/h
+                        speed_kmh = (dist_px * 0.05 / dt) * 3.6
+                        
+                        # Determine dominant direction
+                        if abs(dx) > abs(dy):
+                            direction = "East" if dx > 0 else "West"
+                        else:
+                            direction = "South" if dy > 0 else "North" # y-down
+                            
+                self.track_directions[tracker_id] = direction
+                if tracker_id not in self.track_speeds:
+                    self.track_speeds[tracker_id] = []
+                self.track_speeds[tracker_id].append(speed_kmh)
+                
                 # Log to CSV
-                writer.writerow([current_time, frame_idx, tracker_id, class_name, f"{center_x:.2f}", f"{center_y:.2f}"])
+                writer.writerow([current_time, frame_idx, tracker_id, class_name, f"{center_x:.2f}", f"{center_y:.2f}", f"{speed_kmh:.2f}", direction])
+
+    def get_track_speed(self, tracker_id: int) -> float:
+        """Returns the last calculated speed for a track (in km/h)."""
+        speeds = self.track_speeds.get(tracker_id, [])
+        return speeds[-1] if speeds else 0.0
+
+    def get_track_direction(self, tracker_id: int) -> str:
+        """Returns the last calculated direction for a track."""
+        return self.track_directions.get(tracker_id, "Unknown")
                 
     def get_summary_text(self) -> str:
         """Returns a formatted string summarizing the unique counts."""
@@ -138,6 +185,26 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         avg_dwell = sum(dwell_time_list) / len(dwell_time_list) if dwell_time_list else 0
         max_dwell = max(dwell_time_list) if dwell_time_list else 0
         
+        # Calculate speed stats
+        class_speeds = {}
+        all_speeds = []
+        for tracker_id, speeds in self.track_speeds.items():
+            class_name = self.tracker_classes.get(tracker_id, "Unknown")
+            # Filter out 0.0 speeds (initial frames)
+            valid_speeds = [s for s in speeds if s > 0]
+            if valid_speeds:
+                if class_name not in class_speeds:
+                    class_speeds[class_name] = []
+                class_speeds[class_name].extend(valid_speeds)
+                all_speeds.extend(valid_speeds)
+                
+        class_speed_averages = {
+            class_name: round(sum(speeds) / len(speeds), 2)
+            for class_name, speeds in class_speeds.items() if speeds
+        }
+        avg_speed = round(sum(all_speeds) / len(all_speeds), 2) if all_speeds else 0.0
+        max_speed = round(max(all_speeds), 2) if all_speeds else 0.0
+        
         # Construct JSON summary
         summary = {
             "video_stats": {
@@ -154,6 +221,11 @@ class AnalyticsEnginePlugin(BaseAnalytics):
             "dwell_times_sec": {
                 "average": round(avg_dwell, 2),
                 "maximum": round(max_dwell, 2)
+            },
+            "speed_stats": {
+                "average_speed_kmh": avg_speed,
+                "maximum_speed_kmh": max_speed,
+                "class_averages_kmh": class_speed_averages
             },
             "zone_activity": self.zone_stats
         }

@@ -30,9 +30,9 @@ def test_full_video_pipeline(client: TestClient):
         job = res.json()
         
         status = job.get("status")
-        if status == "completed":
+        if status == "COMPLETED":
             break
-        elif status == "failed":
+        elif status == "FAILED":
             pytest.fail(f"Background job failed: {job.get('error')}")
             
         time.sleep(1)
@@ -60,4 +60,4 @@ def test_full_video_pipeline(client: TestClient):
     # Report (CSV)
     report_res = client.get(f"/api/v1/jobs/{job_id}/report")
     assert report_res.status_code == 200
-    assert report_res.headers["content-type"] == "text/csv"
+    assert report_res.headers["content-type"].startswith("text/csv")

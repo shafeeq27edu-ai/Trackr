@@ -30,6 +30,9 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
         stream_manager.update_stream(stream_id, status=StreamStatus.FAILED, error="Failed to open source")
         return
 
+    # Reduce camera buffering lag to ensure real-time latency
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
     tracker = ByteTrackerWrapper()
     # Assume 30fps for analytics initially, can adjust dynamically if needed
     fps_prop = cap.get(cv2.CAP_PROP_FPS)
@@ -37,7 +40,7 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
     
     analytics = AnalyticsEngine(log_dir="outputs/live", fps=fps)
     
-    box_annotator = sv.BoxAnnotator()
+    box_annotator = sv.BoundingBoxAnnotator()
     label_annotator = sv.LabelAnnotator()
     trace_annotator = sv.TraceAnnotator(trace_length=int(fps))
     
@@ -75,13 +78,21 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
             # 3. Analytics
             analytics.process_detections(detections, detector.model.names, frames_processed)
             
-            # 4. Annotate
-            annotated_frame = frame.copy()
+            # 4. Annotate (optimize: in-place modification of frame is safe for webcam loops)
+            annotated_frame = frame
             if detections.tracker_id is not None and len(detections.tracker_id) > 0:
-                labels = [
-                    f"#{tracker_id} {detector.model.names[class_id]} {confidence:.2f}"
-                    for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id)
-                ]
+                labels = []
+                for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id):
+                    speed = analytics.get_track_speed(tracker_id)
+                    direction = analytics.get_track_direction(tracker_id)
+                    
+                    label_parts = [f"#{tracker_id} {detector.model.names[class_id]}"]
+                    if speed > 0:
+                        label_parts.append(f"{speed:.1f} km/h")
+                    if direction != "Unknown":
+                        label_parts.append(direction)
+                    labels.append(" | ".join(label_parts))
+                    
                 annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
                 annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
                 annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
@@ -110,7 +121,10 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
                 "fps": round(current_fps, 2),
                 "analytics": {
                     "summary_text": summary_text,
-                    "traffic_stats": analytics.traffic_stats,
+                    "traffic_stats": {
+                        "total_unique_objects": sum(len(ids) for ids in analytics.unique_counts.values()),
+                        "peak_occupancy": analytics.peak_occupancy,
+                    }
                 }
             }
             

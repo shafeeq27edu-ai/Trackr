@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from config.settings import settings
 
 from core.logging import logger
-from core.exceptions import TrackrException, trackr_exception_handler, global_exception_handler
+from core.exceptions import TrackrException
 from core.job_manager import JobManager
 from api.v1 import jobs, system, streams, auth, projects, health, models, plugins, enterprise
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -26,15 +26,12 @@ async def lifespan(app: FastAPI):
         model_registry.discover_from_plugins()
         
         # Load the ModelManager exactly once!
-        model_manager = ModelManager()
-        # Pre-load the configured model
-        model_manager.get_yolo_model(settings.yolo_model_path)
+        from core.dependencies import get_model_manager, get_settings
         
-        app.state.model_manager = model_manager
-        app.state.settings = settings
-        app.state.job_manager = JobManager()
-        from core.stream_manager import StreamManager
-        app.state.stream_manager = StreamManager()
+        # Pre-load the configured model
+        model_manager = get_model_manager()
+        model_manager.get_yolo_model(get_settings().yolo_model_path)
+        
         logger.info("ModelManager, JobManager, and StreamManager loaded successfully. Ready to serve requests.")
     except Exception as e:
         logger.critical(f"Failed to initialize model during startup: {str(e)}", exc_info=True)
@@ -52,8 +49,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from core.exceptions import TrackrException, trackr_exception_handler, global_exception_handler, http_exception_handler, request_validation_exception_handler
+from fastapi import HTTPException
+from fastapi.exceptions import RequestValidationError
+
 # Register Custom Exception Handlers
 app.add_exception_handler(TrackrException, trackr_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 # Register API Routers
