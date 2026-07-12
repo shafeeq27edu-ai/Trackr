@@ -15,8 +15,6 @@ class BaseAnalytics(BasePlugin):
     def process_frame(self, detections: sv.Detections, *args, **kwargs) -> None:
         """Process a single frame's detections."""
         pass
-        """Process a single frame's detections."""
-        pass
         
     @abstractmethod
     def get_results(self) -> Dict[str, Any]:

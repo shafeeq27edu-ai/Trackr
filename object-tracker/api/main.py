@@ -49,6 +49,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 from core.exceptions import TrackrException, trackr_exception_handler, global_exception_handler, http_exception_handler, request_validation_exception_handler
 from fastapi import HTTPException
 from fastapi.exceptions import RequestValidationError

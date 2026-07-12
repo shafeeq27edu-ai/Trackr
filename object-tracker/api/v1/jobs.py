@@ -12,7 +12,7 @@ from services.job_service import JobService
 router = APIRouter()
 
 @router.post("/jobs/upload")
-def create_job(
+async def create_job(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
@@ -23,19 +23,22 @@ def create_job(
     Accepts a video upload, creates a new job, kicks off processing in the background, 
     and returns the job ID immediately.
     """
-    job = job_service.upload_video(file, current_user.id, background_tasks, project_id)
+    job = await job_service.upload_video(file, current_user.id, background_tasks, project_id)
     return {"job_id": job.id, "status": job.status, "message": "Job successfully queued for processing."}
 
 @router.get("/jobs/{job_id}", response_model=Job)
-def get_job_status(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
-    job = job_manager.get_job(job_id)
+async def get_job_status(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
+    job = await job_manager.get_job(job_id)
     if not job or (job.user_id and job.user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 @router.get("/jobs/{job_id}/result")
-def get_job_result(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
-    job = job_manager.get_job(job_id)
+# SECURITY WARNING: This endpoint allows authentication via `?token=` query parameter.
+# This exposes the JWT in browser history, server logs, and Referer headers.
+# Future improvement: Use short-lived signed URLs for media downloads instead of the main JWT.
+async def get_job_result(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
+    job = await job_manager.get_job(job_id)
     if not job or (job.user_id and job.user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Job not found")
     
@@ -52,8 +55,8 @@ def get_job_result(job_id: str, job_manager: JobManager = Depends(get_job_manage
     )
 
 @router.get("/jobs/{job_id}/analytics")
-def get_job_analytics(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
-    job = job_manager.get_job(job_id)
+async def get_job_analytics(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
+    job = await job_manager.get_job(job_id)
     if not job or (job.user_id and job.user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status != JobStatus.COMPLETED:
@@ -62,8 +65,8 @@ def get_job_analytics(job_id: str, job_manager: JobManager = Depends(get_job_man
     return JSONResponse(content={"analytics": job.analytics})
 
 @router.get("/jobs/{job_id}/heatmap")
-def get_job_heatmap(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
-    job = job_manager.get_job(job_id)
+async def get_job_heatmap(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
+    job = await job_manager.get_job(job_id)
     if not job or (job.user_id and job.user_id != current_user.id) or job.status != JobStatus.COMPLETED or not job.output_path:
         raise HTTPException(status_code=404, detail="Heatmap not available yet.")
         
@@ -80,8 +83,8 @@ def get_job_heatmap(job_id: str, job_manager: JobManager = Depends(get_job_manag
     )
 
 @router.get("/jobs/{job_id}/report")
-def get_job_report(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
-    job = job_manager.get_job(job_id)
+async def get_job_report(job_id: str, job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
+    job = await job_manager.get_job(job_id)
     if not job or (job.user_id and job.user_id != current_user.id) or job.status != JobStatus.COMPLETED or not job.output_path:
         raise HTTPException(status_code=404, detail="Report not available yet.")
         
@@ -98,17 +101,17 @@ def get_job_report(job_id: str, job_manager: JobManager = Depends(get_job_manage
     )
 
 @router.get("/jobs")
-def list_jobs(job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
-    jobs = job_manager.list_jobs()
+async def list_jobs(job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
+    jobs = job_manager.get_all_jobs()
     # Filter by user
     user_jobs = [job.model_dump() for job in jobs.values() if job.user_id == current_user.id]
     return {"jobs": user_jobs}
 
 @router.delete("/jobs/{job_id}")
-def delete_job(job_id: str, job_service: JobService = Depends(get_job_service), current_user: User = Depends(get_current_user), job_manager: JobManager = Depends(get_job_manager)):
-    job = job_manager.get_job(job_id)
+async def delete_job(job_id: str, job_service: JobService = Depends(get_job_service), current_user: User = Depends(get_current_user), job_manager: JobManager = Depends(get_job_manager)):
+    job = await job_manager.get_job(job_id)
     if not job or (job.user_id and job.user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Job not found")
         
-    success = job_service.delete_job(job_id)
+    success = await job_service.delete_job(job_id)
     return {"success": success, "message": "Job deleted successfully"}

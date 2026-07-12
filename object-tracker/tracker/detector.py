@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from typing import List
 
 # Fix for PyTorch 2.6+ weights_only=True default breaking older ultralytics
 original_load = torch.load
@@ -20,6 +21,7 @@ if not torch.cuda.is_available():
 
 from core.models.base import BaseDetector
 from core.plugin_manager import plugin_manager
+from core.logging import logger
 
 class YoloDetectorPlugin(BaseDetector):
     """
@@ -44,10 +46,23 @@ class YoloDetectorPlugin(BaseDetector):
         return "1.0.0"
         
     def load_model(self, device: str = "cpu"):
-        """Loads the weights into memory."""
+        """Loads the weights into memory, preferring ONNX if available or exporting it."""
         self.device = device
         self.use_half = device == "cuda"
+        
+        # Try to use ONNX for CPU inference acceleration
         try:
+            onnx_path = self.model_name.replace('.pt', '.onnx')
+            if device == "cpu" and self.model_name.endswith('.pt'):
+                if not os.path.exists(onnx_path) and os.path.exists(self.model_name):
+                    logger.info(f"Exporting {self.model_name} to ONNX for CPU acceleration...")
+                    temp_model = YOLO(self.model_name)
+                    temp_model.export(format="onnx", imgsz=640, half=False, simplify=True)
+                
+                if os.path.exists(onnx_path):
+                    logger.info(f"Loading accelerated ONNX model: {onnx_path}")
+                    self.model_name = onnx_path
+                    
             self.model = YOLO(self.model_name)
             if device:
                 self.model.to(device)
@@ -74,10 +89,39 @@ class YoloDetectorPlugin(BaseDetector):
         
         return detections
 
+    def detect_batch(self, frames: List[np.ndarray], conf_threshold: float = 0.25, imgsz: int = 640) -> List[sv.Detections]:
+        """
+        Runs inference on a batch of frames to maximize GPU throughput.
+        """
+        if self.model is None:
+            raise RuntimeError("Model is not loaded. Call load_model() first.")
+            
+        with torch.inference_mode():
+            results = self.model(frames, verbose=False, half=self.use_half, imgsz=imgsz)
+            
+        batch_detections = []
+        for result in results:
+            detections = sv.Detections.from_ultralytics(result)
+            detections = detections[detections.confidence >= conf_threshold]
+            batch_detections.append(detections)
+            
+        return batch_detections
+
 # Backward compatibility alias
 YoloDetector = YoloDetectorPlugin
 
-# Register common YOLO models as plugins
-plugin_manager.register_plugin(lambda: YoloDetectorPlugin("yolov8n.pt"))
-plugin_manager.register_plugin(lambda: YoloDetectorPlugin("yolov8s.pt"))
-plugin_manager.register_plugin(lambda: YoloDetectorPlugin("yolov8m.pt"))
+class YoloV8nPlugin(YoloDetectorPlugin):
+    def __init__(self):
+        super().__init__("yolov8n.pt")
+
+class YoloV8sPlugin(YoloDetectorPlugin):
+    def __init__(self):
+        super().__init__("yolov8s.pt")
+
+class YoloV8mPlugin(YoloDetectorPlugin):
+    def __init__(self):
+        super().__init__("yolov8m.pt")
+
+plugin_manager.register_plugin(YoloV8nPlugin)
+plugin_manager.register_plugin(YoloV8sPlugin)
+plugin_manager.register_plugin(YoloV8mPlugin)

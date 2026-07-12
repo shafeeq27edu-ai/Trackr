@@ -34,13 +34,7 @@ def load_zones(zones_file: str, resolution_wh: tuple) -> List[Dict[str, Any]]:
                 "id": z["id"],
                 "name": z["name"],
                 "zone_obj": zone_obj,
-                "annotator": sv.PolygonZoneAnnotator(
-                    zone=zone_obj, 
-                    color=sv.Color.ROBOFLOW,
-                    thickness=2,
-                    text_thickness=1,
-                    text_scale=0.5
-                )
+                "polygon_pts": pts,
             })
         return loaded_zones
     except Exception as e:
@@ -141,76 +135,85 @@ def process_video_file(
         
         with sv.VideoSink(target_path=output_path, video_info=output_video_info, codec=codec) as sink:
             frame_idx = 0
-            for frame in sv.get_video_frames_generator(input_path, stride=stride):
-                # 1. Detect objects (downscale internal grid to 480 for massive speedup)
-                detections = detector.detect(frame, conf_threshold=settings.confidence_threshold, imgsz=480)
+            batch_size = 4
+            frame_batch = []
+            
+            def process_batch():
+                nonlocal frame_idx
+                if not frame_batch:
+                    return
                 
-                # 2. Track objects
-                detections = tracker.update(detections)
+                # 1. Detect objects in batch
+                batch_detections = detector.detect_batch(frame_batch, conf_threshold=settings.confidence_threshold, imgsz=640)
                 
-                # 3. Process Analytics & Zone Triggers
-                analytics.process_detections(detections, detector.model.names, frame_idx)
-                
-                has_tracks = detections.tracker_id is not None and len(detections.tracker_id) > 0
-                
-                # Zone processing
-                if has_tracks:
-                    for z in zones:
-                        is_in_zone = z["zone_obj"].trigger(detections=detections)
-                        analytics.process_zone_triggers(z["id"], is_in_zone, detections.tracker_id)
-                
-                # 4. Annotate (optimize: direct modification is safe as generator frames are not reused)
-                annotated_frame = frame
-                
-                if use_heatmap and has_tracks:
-                    heatmap_canvas = heatmap_annotator.annotate(scene=heatmap_canvas, detections=detections)
-                
-                if has_tracks:
-                    labels = []
-                    for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id):
-                        speed = analytics.get_track_speed(tracker_id)
-                        direction = analytics.get_track_direction(tracker_id)
+                for b_frame, b_detections in zip(frame_batch, batch_detections):
+                    # 2. Track objects
+                    b_detections = tracker.update(b_detections)
+                    
+                    # 3. Process Analytics & Zone Triggers
+                    analytics.process_detections(b_detections, detector.model.names, frame_idx)
+                    
+                    has_tracks = b_detections.tracker_id is not None and len(b_detections.tracker_id) > 0
+                    
+                    if has_tracks:
+                        for z in zones:
+                            is_in_zone = z["zone_obj"].trigger(detections=b_detections)
+                            analytics.process_zone_triggers(z["id"], is_in_zone, b_detections.tracker_id)
+                            
+                    # 4. Annotate
+                    annotated_frame = b_frame
+                    
+                    if use_heatmap and has_tracks:
+                        nonlocal heatmap_canvas
+                        heatmap_canvas = heatmap_annotator.annotate(scene=heatmap_canvas, detections=b_detections)
                         
-                        label_parts = [f"#{tracker_id} {detector.model.names[class_id]}"]
-                        if speed > 0:
-                            label_parts.append(f"{speed:.1f} km/h")
-                        if direction != "Unknown":
-                            label_parts.append(direction)
-                        labels.append(" | ".join(label_parts))
+                    if has_tracks:
+                        labels = []
+                        for class_id, confidence, tracker_id in zip(b_detections.class_id, b_detections.confidence, b_detections.tracker_id):
+                            speed = analytics.get_track_speed(tracker_id)
+                            direction = analytics.get_track_direction(tracker_id)
+                            
+                            label_parts = [f"#{tracker_id} {detector.model.names[class_id]}"]
+                            if speed > 0:
+                                label_parts.append(f"{speed:.1f} km/h")
+                            if direction != "Unknown":
+                                label_parts.append(direction)
+                            labels.append(" | ".join(label_parts))
+                            
+                        annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=b_detections)
+                        annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=b_detections)
+                        annotated_frame = label_annotator.annotate(
+                            scene=annotated_frame, detections=b_detections, labels=labels
+                        )
+                        
+                    for z in zones:
+                        cv2.polylines(annotated_frame, [z["polygon_pts"]], isClosed=True, color=(0, 255, 0), thickness=2)
+                        label_pos = tuple(z["polygon_pts"][0])
+                        cv2.putText(annotated_frame, z["name"], label_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                        
+                    summary_text = analytics.get_summary_text()
+                    cv2.putText(annotated_frame, f"Unique Counts: {summary_text}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
                     
-                    annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
-                    annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
-                    annotated_frame = label_annotator.annotate(
-                        scene=annotated_frame, detections=detections, labels=labels
-                    )
+                    # 6. Save to output video
+                    sink.write_frame(frame=annotated_frame)
                     
-                # Annotate zones
-                for z in zones:
-                    annotated_frame = z["annotator"].annotate(scene=annotated_frame)
+                    frame_idx += stride
+                    
+                    # Update Job Progress (throttle updates)
+                    if frame_idx % (10 * stride) == 0 or frame_idx >= total_frames:
+                        progress_percentage = min((frame_idx / total_frames) * 100, 100.0) if total_frames > 0 else 0
+                        current_fps = frame_idx / (time.time() - start_time)
+                        job_manager.update_job(job_id, progress=progress_percentage, average_fps=current_fps)
                 
-                # 5. Add Analytics Overlay
-                summary_text = analytics.get_summary_text()
-                cv2.putText(
-                    annotated_frame, 
-                    f"Unique Counts: {summary_text}", 
-                    (20, 40), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 
-                    0.8, 
-                    (0, 255, 255), 
-                    2
-                )
-                
-                # 6. Save to output video (encode ONCE using modified FPS metadata)
-                sink.write_frame(frame=annotated_frame)
-                
-                # Cleanup frame memory (let Python handle it automatically)
-                frame_idx += stride
-                
-                # Update Job Progress (throttle updates)
-                if frame_idx % (10 * stride) == 0 or frame_idx >= total_frames:
-                    progress_percentage = min((frame_idx / total_frames) * 100, 100.0) if total_frames > 0 else 0
-                    current_fps = frame_idx / (time.time() - start_time)
-                    job_manager.update_job(job_id, progress=progress_percentage, average_fps=current_fps)
+                frame_batch.clear()
+
+            for frame in sv.get_video_frames_generator(input_path, stride=stride):
+                frame_batch.append(frame)
+                if len(frame_batch) >= batch_size:
+                    process_batch()
+            
+            # Process any remaining frames
+            process_batch()
                     
         duration = time.time() - start_time
         final_fps = frame_idx / duration if duration > 0 else 0
@@ -224,23 +227,33 @@ def process_video_file(
         # Generate final Session Summary
         summary = analytics.generate_session_summary(total_frames, duration)
         
-        # Post-process with FFmpeg to guarantee H.264 and browser compatibility
-        import subprocess
-        job_manager.update_job(job_id, status=JobStatus.PROCESSING, stage="Finalizing Video (Encoding)")
-        temp_output = output_path + ".temp.mp4"
-        os.rename(output_path, temp_output)
+        # Post-process with FFmpeg only if we fell back to mp4v (not browser-compatible)
+        if codec != "avc1":
+            import subprocess
+            job_manager.update_job(job_id, status=JobStatus.PROCESSING, stage="Finalizing Video (Encoding)")
+            temp_output = output_path + ".temp.mp4"
+            os.rename(output_path, temp_output)
+            try:
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", temp_output,
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                    "-pix_fmt", "yuv420p", output_path
+                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                os.remove(temp_output)
+            except Exception as e:
+                logger.error(f"FFmpeg conversion failed: {e}. Keeping original.")
+                if os.path.exists(temp_output):
+                    os.rename(temp_output, output_path)
+        else:
+            logger.info("avc1 codec succeeded, skipping FFmpeg re-encode.")
+        
+        # Clean up temp input file to prevent disk fill
         try:
-            # -y overwrites, -c:v libx264 for universal HTML5 support, -pix_fmt yuv420p for max compat
-            subprocess.run([
-                "ffmpeg", "-y", "-i", temp_output,
-                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                "-pix_fmt", "yuv420p", output_path
-            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            os.remove(temp_output)
+            if os.path.exists(input_path):
+                os.remove(input_path)
+                logger.info(f"Cleaned up temp input file: {input_path}")
         except Exception as e:
-            logger.error(f"FFmpeg conversion failed: {e}. Keeping original.")
-            if os.path.exists(temp_output):
-                os.rename(temp_output, output_path)
+            logger.warning(f"Failed to clean up temp file {input_path}: {e}")
 
         # Mark job as completed
         # Save output using the storage abstraction

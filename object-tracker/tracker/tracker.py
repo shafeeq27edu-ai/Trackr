@@ -9,7 +9,7 @@ class ByteTrackerPlugin(BaseTracker):
     Acts as a tracking plugin.
     """
     
-    def __init__(self, track_activation_threshold: float = 0.25, lost_track_buffer: int = 30):
+    def __init__(self, track_activation_threshold: float = 0.4, lost_track_buffer: int = 30):
         """
         Initializes the ByteTracker.
         """

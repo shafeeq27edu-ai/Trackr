@@ -53,6 +53,10 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         self._csv_file = open(self.csv_path, mode='w', newline='')
         self._csv_writer = csv.writer(self._csv_file)
         self._csv_writer.writerow(["timestamp", "frame_idx", "track_id", "class_name", "center_x", "center_y", "speed_kmh", "direction"])
+        
+        # Track last-seen frame for stale tracker eviction
+        self._last_seen: Dict[int, int] = {}  # tracker_id -> last frame_idx
+        self._eviction_interval = 300  # Evict trackers not seen for this many frames
             
     def register_zone(self, zone_id: str):
         """Registers a zone for entry/exit tracking."""
@@ -93,6 +97,9 @@ class AnalyticsEnginePlugin(BaseAnalytics):
             self.peak_occupancy = current_occupancy
             
         self.total_detections += current_occupancy
+        
+        # Track which IDs are active this frame
+        active_ids = set(detections.tracker_id)
         
         for class_id, tracker_id, bbox in zip(detections.class_id, detections.tracker_id, detections.xyxy):
                 class_name = class_names[class_id]
@@ -149,6 +156,21 @@ class AnalyticsEnginePlugin(BaseAnalytics):
                 
                 # Log to CSV
                 self._csv_writer.writerow([current_time, frame_idx, tracker_id, class_name, f"{center_x:.2f}", f"{center_y:.2f}", f"{speed_kmh:.2f}", direction])
+                
+                # Update last-seen frame for this tracker
+                self._last_seen[tracker_id] = frame_idx
+        
+        # Evict stale trackers to prevent memory bloat on long videos/streams
+        if frame_idx % self._eviction_interval == 0 and frame_idx > 0:
+            stale_ids = [tid for tid, last_frame in self._last_seen.items()
+                         if frame_idx - last_frame > self._eviction_interval]
+            for tid in stale_ids:
+                self.track_history.pop(tid, None)
+                self.track_speeds.pop(tid, None)
+                self.track_directions.pop(tid, None)
+                self._last_seen.pop(tid, None)
+                for zone_id in self.zone_states:
+                    self.zone_states[zone_id].pop(tid, None)
 
     def get_track_speed(self, tracker_id: int) -> float:
         """Returns the last calculated speed for a track (in km/h)."""
@@ -239,8 +261,18 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         logger.info(f"Session summary generated at {self.summary_path}")
         return summary
         
+    def _close_csv(self):
+        """Safely close the CSV file handle."""
+        if hasattr(self, '_csv_file') and self._csv_file and not self._csv_file.closed:
+            self._csv_file.close()
+    
+    def __del__(self):
+        """Ensure CSV file is closed on garbage collection."""
+        self._close_csv()
+
     def reset(self) -> None:
         """Reset the analytics state."""
+        self._close_csv()
         self.unique_counts.clear()
         self.peak_occupancy = 0
         self.total_detections = 0
@@ -251,6 +283,7 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         self.track_history.clear()
         self.track_speeds.clear()
         self.track_directions.clear()
+        self._last_seen.clear()
 
 # Backward compatibility alias
 AnalyticsEngine = AnalyticsEnginePlugin

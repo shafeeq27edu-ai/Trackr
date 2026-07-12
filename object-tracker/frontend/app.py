@@ -188,9 +188,9 @@ st.sidebar.divider()
 
 st.sidebar.title("🖥️ System Health")
 try:
-    perf_res = requests.get(f"{SYS_API_BASE_URL}/performance")
-    res_res = requests.get(f"{SYS_API_BASE_URL}/resources")
-    models_res = requests.get(f"{SYS_API_BASE_URL}/models")
+    perf_res = requests.get(f"{SYS_API_BASE_URL}/performance", headers=get_auth_headers())
+    res_res = requests.get(f"{SYS_API_BASE_URL}/resources", headers=get_auth_headers())
+    models_res = requests.get(f"{SYS_API_BASE_URL}/models", headers=get_auth_headers())
     
     if res_res.status_code == 200:
         res_data = res_res.json()
@@ -235,66 +235,69 @@ with tab_batch:
             m_col4.metric("Average Speed", f"{avg_fps:.1f} FPS")
             st.divider()
 
-        uploaded_file = st.file_uploader("Upload a video file (.mp4)", type=["mp4"])
-        if uploaded_file is not None:
-            if st.button("Process Video"):
-                with st.spinner("Uploading and queueing job..."):
-                    files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "video/mp4")}
-                    # We pass the token in headers, and project_id in data/form
-                    data = {"project_id": st.session_state.selected_project_id}
-                    response = requests.post(f"{API_BASE_URL}/jobs/upload", files=files, data=data, headers=get_auth_headers())
-                    
-                if response.status_code == 200:
-                    data = response.json()
-                    job_id = data.get("job_id")
-                    st.success(f"Job Queued! ID: {job_id}")
-                    
-                    progress_bar = st.progress(0.0)
-                    status_text = st.empty()
-                    
-                    start_process_time = time.time()
-                    
-                    while True:
-                        time.sleep(1)
-                        status_res = requests.get(f"{API_BASE_URL}/jobs/{job_id}", headers=get_auth_headers())
-                        if status_res.status_code == 200:
-                            job = status_res.json()
-                            status = job.get("status")
-                            stage = job.get("stage", "")
-                            progress = job.get("progress", 0.0)
-                            
-                            elapsed = time.time() - start_process_time
-                            
-                            # Estimate ETA
-                            if progress > 0:
-                                rate = progress / elapsed  # progress % per second
-                                remaining = 100.0 - progress
-                                eta_seconds = remaining / rate
-                                eta_str = time.strftime("%M:%S", time.gmtime(eta_seconds))
-                            else:
-                                eta_str = "--:--"
-                                
-                            current_fps_val = job.get("average_fps", 0.0) or 0.0
-                            
-                            progress_val = min(max(progress / 100.0, 0.0), 1.0)
-                            progress_bar.progress(progress_val)
-                            status_text.markdown(
-                                f"**Status:** `{status}` | **Stage:** {stage} | "
-                                f"**Progress:** {progress:.1f}% | **Speed:** {current_fps_val:.1f} FPS | "
-                                f"**Elapsed:** {time.strftime('%M:%S', time.gmtime(elapsed))} | **ETA:** {eta_str}"
-                            )
-                            
-                            if status == "COMPLETED":
-                                st.success("Video processing completed successfully!")
-                                break
-                            elif status == "FAILED":
-                                st.error(f"Processing failed: {job.get('error')}")
-                                break
-                        else:
-                            st.error(f"Failed to fetch job status: {status_res.text}")
-                            break
+        if "active_job_id" not in st.session_state:
+            st.session_state.active_job_id = None
+            st.session_state.start_process_time = None
+            
+        if st.session_state.active_job_id:
+            job_id = st.session_state.active_job_id
+            st.info(f"Processing Job: {job_id}")
+            status_res = requests.get(f"{API_BASE_URL}/jobs/{job_id}", headers=get_auth_headers())
+            
+            if status_res.status_code == 200:
+                job = status_res.json()
+                status = job.get("status")
+                stage = job.get("stage", "")
+                progress = job.get("progress", 0.0)
+                
+                elapsed = time.time() - st.session_state.start_process_time
+                
+                if progress > 0:
+                    rate = progress / elapsed
+                    remaining = 100.0 - progress
+                    eta_seconds = remaining / rate
+                    eta_str = time.strftime("%M:%S", time.gmtime(eta_seconds))
                 else:
-                    st.error(f"Failed to queue job: {response.text}")
+                    eta_str = "--:--"
+                    
+                current_fps_val = job.get("average_fps", 0.0) or 0.0
+                progress_val = min(max(progress / 100.0, 0.0), 1.0)
+                st.progress(progress_val)
+                st.markdown(
+                    f"**Status:** `{status}` | **Stage:** {stage} | "
+                    f"**Progress:** {progress:.1f}% | **Speed:** {current_fps_val:.1f} FPS | "
+                    f"**Elapsed:** {time.strftime('%M:%S', time.gmtime(elapsed))} | **ETA:** {eta_str}"
+                )
+                
+                if status == "COMPLETED":
+                    st.success("Video processing completed successfully!")
+                    st.session_state.active_job_id = None
+                elif status == "FAILED":
+                    st.error(f"Processing failed: {job.get('error')}")
+                    st.session_state.active_job_id = None
+                else:
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.error(f"Failed to fetch job status: {status_res.text}")
+                st.session_state.active_job_id = None
+                
+        else:
+            uploaded_file = st.file_uploader("Upload a video file (.mp4)", type=["mp4"])
+            if uploaded_file is not None:
+                if st.button("Process Video"):
+                    with st.spinner("Uploading and queueing job..."):
+                        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "video/mp4")}
+                        data = {"project_id": st.session_state.selected_project_id}
+                        response = requests.post(f"{API_BASE_URL}/jobs/upload", files=files, data=data, headers=get_auth_headers())
+                        
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.session_state.active_job_id = data.get("job_id")
+                        st.session_state.start_process_time = time.time()
+                        st.rerun()
+                    else:
+                        st.error(f"Failed to queue job: {response.text}")
                     
         # List jobs for this project (using the list fetched at the top)
         st.divider()
@@ -444,7 +447,8 @@ with tab_live:
                         <body style="margin:0; padding:0; background-color:#0e1117; display: flex; justify-content: center;">
                             <img id="videoStream" style="max-width: 100%; height: auto;" />
                             <script>
-                                var ws = new WebSocket("ws://localhost:8000/api/v1/streams/live/{s['id']}?token={st.session_state.token}");
+                                var wsUrl = "{API_BASE_URL}".replace(/^http/, "ws");
+                                var ws = new WebSocket(wsUrl + "/streams/live/{s['id']}?token={st.session_state.token}");
                                 ws.binaryType = "blob";
                                 var img = document.getElementById("videoStream");
                                 ws.onmessage = function(event) {{

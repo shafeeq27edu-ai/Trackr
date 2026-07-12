@@ -11,6 +11,31 @@ from typing import Optional
 
 from core.execution.base import ExecutionBackend
 
+def _process_video_wrapper(input_path: str, output_path: str, job_id: str, yolo_model_path: str):
+    """Picklable wrapper for running video processing in a separate process."""
+    from core.job_manager import JobManager
+    from tracker.detector import plugin_manager
+    from config.settings import get_cached_settings
+    
+    settings = get_cached_settings()
+    job_manager = JobManager()
+    
+    # We load the generic YOLO model or use the plugin
+    # Here we assume the default model is loaded
+    from core.dependencies import get_model_manager
+    model_manager = get_model_manager()
+    detector = model_manager.get_yolo_model(yolo_model_path)
+    
+    from services.video_service import process_video_file
+    return process_video_file(
+        input_path=input_path,
+        output_path=output_path,
+        detector=detector,
+        settings=settings,
+        job_id=job_id,
+        job_manager=job_manager
+    )
+
 class JobService:
     def __init__(self, job_manager: JobManager, settings: Settings, detector: YoloDetector, execution_backend: ExecutionBackend):
         self.job_manager = job_manager
@@ -18,7 +43,7 @@ class JobService:
         self.detector = detector
         self.execution_backend = execution_backend
 
-    def upload_video(
+    async def upload_video(
         self, 
         file: UploadFile, 
         user_id: str, 
@@ -33,8 +58,8 @@ class JobService:
         os.makedirs(self.settings.temp_dir, exist_ok=True)
         os.makedirs(self.settings.output_dir, exist_ok=True)
         
-        job = self.job_manager.create_job(filename=file.filename, user_id=user_id, project_id=project_id)
-        self.job_manager.update_job(job.id, status=JobStatus.INITIALIZING, stage="Saving file")
+        job = await self.job_manager.create_job(filename=file.filename, user_id=user_id, project_id=project_id)
+        await self.job_manager.update_job(job.id, status=JobStatus.INITIALIZING, stage="Saving file")
         
         input_filename = f"{job.id}_{file.filename}"
         output_filename = f"tracked_{job.id}_{file.filename}"
@@ -53,19 +78,17 @@ class JobService:
             
         # Kick off processing using the dedicated execution backend
         self.execution_backend.submit_job(
-            process_video_file,
+            _process_video_wrapper,
             input_path=input_path,
             output_path=output_path,
-            detector=self.detector,
-            settings=self.settings,
             job_id=job.id,
-            job_manager=self.job_manager
+            yolo_model_path=self.settings.yolo_model_path
         )
         
         return job
 
-    def delete_job(self, job_id: str) -> bool:
-        job = self.job_manager.get_job(job_id)
+    async def delete_job(self, job_id: str) -> bool:
+        job = await self.job_manager.get_job(job_id)
         if not job:
             return False
             
@@ -76,4 +99,4 @@ class JobService:
             except Exception as e:
                 logger.warning(f"Failed to delete output file {job.output_path}: {e}")
                 
-        return self.job_manager.delete_job(job_id)
+        return await self.job_manager.delete_job(job_id)

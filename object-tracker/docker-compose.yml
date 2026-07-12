@@ -1,43 +1,24 @@
 version: '3.8'
 
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: backend.Dockerfile
-    container_name: trackr-backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./outputs:/app/outputs
-      - ./data:/app/data
-      - trackr_db:/app/trackr.db
-    env_file:
-      - .env
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/system/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: .
-      dockerfile: frontend.Dockerfile
-    container_name: trackr-frontend
-    ports:
-      - "8501:8501"
-    depends_on:
-      backend:
-        condition: service_healthy
-    env_file:
-      - .env
+  db:
+    image: postgres:15-alpine
     environment:
-      - API_BASE_URL=http://backend:8000/api/v1
-      - SYS_API_BASE_URL=http://backend:8000/api/v1/system
-    restart: unless-stopped
+      POSTGRES_USER: trackr_user
+      POSTGRES_PASSWORD: trackr_password
+      POSTGRES_DB: trackr_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
 volumes:
-  trackr_db:
+  postgres_data:
+  redis_data:

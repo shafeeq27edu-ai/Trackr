@@ -1,14 +1,14 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 import uuid
 from typing import Callable, Any, Dict
 from core.execution.base import ExecutionBackend
 from core.logging import logger
 
 class LocalExecutionBackend(ExecutionBackend):
-    """Local execution backend using a thread pool."""
+    """Local execution backend using a process pool to bypass the GIL."""
     
     def __init__(self, max_workers: int = 4):
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.executor = ProcessPoolExecutor(max_workers=max_workers)
         self.futures = {}
 
     def submit_job(self, task: Callable, *args, **kwargs) -> str:

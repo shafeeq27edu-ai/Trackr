@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "text"
     
+    # Infrastructure (Postgres & Redis)
+    database_url: str = Field("postgresql+asyncpg://trackr_user:trackr_password@localhost:5432/trackr_db", description="PostgreSQL Async Connection URL")
+    redis_url: str = Field("redis://localhost:6379/0", description="Redis Broker URL")
+    
     # Model Cache
     max_cached_models: int = Field(2, gt=0)
 

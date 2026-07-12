@@ -82,8 +82,8 @@ class InferenceWorker:
                 
             last_frame_id = frame_id
                 
-            # Heavy inference on downscaled grid for speed (imgsz=320)
-            detections = self.detector.detect(frame, 0.3, imgsz=320)
+            # Heavy inference on downscaled grid for speed (imgsz=480)
+            detections = self.detector.detect(frame, 0.3, imgsz=480)
             detections = self.tracker.update(detections)
             
             with self.lock:

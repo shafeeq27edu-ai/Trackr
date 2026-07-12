@@ -31,8 +31,14 @@ def get_stream_manager() -> StreamManager:
     """Dependency to inject the global StreamManager."""
     return _stream_manager
 
+_job_service_instance = None
+
 def get_job_service() -> "JobService":
     """Dependency to inject the JobService."""
+    global _job_service_instance
+    if _job_service_instance is not None:
+        return _job_service_instance
+
     from services.job_service import JobService
     from core.execution.local import LocalExecutionBackend
     settings = get_cached_settings()
@@ -43,9 +49,10 @@ def get_job_service() -> "JobService":
     if '_execution_backend' not in globals():
         _execution_backend = LocalExecutionBackend(max_workers=settings.max_workers)
         
-    return JobService(
+    _job_service_instance = JobService(
         job_manager=_job_manager,
         settings=settings,
         detector=get_detector(),
         execution_backend=_execution_backend
     )
+    return _job_service_instance

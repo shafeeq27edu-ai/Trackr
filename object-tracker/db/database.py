@@ -1,23 +1,33 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
 import os
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
+from config.settings import get_cached_settings
 
-# Create a local SQLite database by default
-SQLALCHEMY_DATABASE_URL = "sqlite:///./trackr.db"
+settings = get_cached_settings()
+SQLALCHEMY_DATABASE_URL = settings.database_url
 
-# Setting check_same_thread=False is needed for SQLite when used with FastAPI
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+# Async Engine for PostgreSQL
+engine = create_async_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    echo=False, 
+    pool_size=20, 
+    max_overflow=10
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Async session factory
+SessionLocal = async_sessionmaker(
+    bind=engine, 
+    class_=AsyncSession, 
+    expire_on_commit=False,
+    autocommit=False, 
+    autoflush=False
+)
 
 Base = declarative_base()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db():
+    async with SessionLocal() as db:
+        try:
+            yield db
+        finally:
+            await db.close()
