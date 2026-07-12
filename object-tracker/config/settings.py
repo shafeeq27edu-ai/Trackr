@@ -6,7 +6,7 @@ from pydantic import Field
 class Settings(BaseSettings):
     environment: str = Field("development", description="development, testing, staging, production")
     
-    yolo_model_path: str = Field("yolov8n.pt", description="Path to YOLO model")
+    yolo_model_path: str = Field("yolov8s.pt", description="Path to YOLO model")
     confidence_threshold: float = Field(0.3, ge=0.0, le=1.0)
     hardware_acceleration: str = "auto"
     

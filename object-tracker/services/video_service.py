@@ -128,11 +128,22 @@ def process_video_file(
         except Exception:
             codec = "mp4v"
 
-        with sv.VideoSink(target_path=output_path, video_info=video_info, codec=codec) as sink:
+        # Dynamic stride for massive speedup
+        stride = 2 if video_info.fps > 20 else 1
+        
+        # Modify video info to reduce FPS mathematically so we only encode ONCE!
+        output_video_info = sv.VideoInfo(
+            width=video_info.width,
+            height=video_info.height,
+            fps=video_info.fps / stride,
+            total_frames=video_info.total_frames // stride
+        )
+        
+        with sv.VideoSink(target_path=output_path, video_info=output_video_info, codec=codec) as sink:
             frame_idx = 0
-            for frame in sv.get_video_frames_generator(input_path):
-                # 1. Detect objects
-                detections = detector.detect(frame, conf_threshold=settings.confidence_threshold)
+            for frame in sv.get_video_frames_generator(input_path, stride=stride):
+                # 1. Detect objects (downscale internal grid to 480 for massive speedup)
+                detections = detector.detect(frame, conf_threshold=settings.confidence_threshold, imgsz=480)
                 
                 # 2. Track objects
                 detections = tracker.update(detections)
@@ -189,15 +200,15 @@ def process_video_file(
                     2
                 )
                 
-                # 6. Save to output video
+                # 6. Save to output video (encode ONCE using modified FPS metadata)
                 sink.write_frame(frame=annotated_frame)
                 
                 # Cleanup frame memory (let Python handle it automatically)
-                frame_idx += 1
+                frame_idx += stride
                 
                 # Update Job Progress (throttle updates)
-                if frame_idx % 10 == 0 or frame_idx == total_frames:
-                    progress_percentage = (frame_idx / total_frames) * 100 if total_frames > 0 else 0
+                if frame_idx % (10 * stride) == 0 or frame_idx >= total_frames:
+                    progress_percentage = min((frame_idx / total_frames) * 100, 100.0) if total_frames > 0 else 0
                     current_fps = frame_idx / (time.time() - start_time)
                     job_manager.update_job(job_id, progress=progress_percentage, average_fps=current_fps)
                     
@@ -213,6 +224,24 @@ def process_video_file(
         # Generate final Session Summary
         summary = analytics.generate_session_summary(total_frames, duration)
         
+        # Post-process with FFmpeg to guarantee H.264 and browser compatibility
+        import subprocess
+        job_manager.update_job(job_id, status=JobStatus.PROCESSING, stage="Finalizing Video (Encoding)")
+        temp_output = output_path + ".temp.mp4"
+        os.rename(output_path, temp_output)
+        try:
+            # -y overwrites, -c:v libx264 for universal HTML5 support, -pix_fmt yuv420p for max compat
+            subprocess.run([
+                "ffmpeg", "-y", "-i", temp_output,
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-pix_fmt", "yuv420p", output_path
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os.remove(temp_output)
+        except Exception as e:
+            logger.error(f"FFmpeg conversion failed: {e}. Keeping original.")
+            if os.path.exists(temp_output):
+                os.rename(temp_output, output_path)
+
         # Mark job as completed
         # Save output using the storage abstraction
         from core.storage.manager import storage_manager

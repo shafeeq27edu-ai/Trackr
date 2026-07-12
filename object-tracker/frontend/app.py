@@ -12,25 +12,63 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
+    background-color: #0B0E14;
+    color: #E2E8F0;
 }
 h1, h2, h3, h4, h5, h6 {
     font-family: 'Outfit', sans-serif;
+    background: -webkit-linear-gradient(45deg, #A78BFA, #38BDF8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 .stMetric {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    padding: 15px 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.stMetric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px -5px rgba(56, 189, 248, 0.15);
 }
 div[data-testid="stExpander"] {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border-radius: 12px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+div[data-testid="stExpander"]:hover {
+    border-color: rgba(56, 189, 248, 0.3);
 }
 .stButton>button {
-    border-radius: 6px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    color: white !important;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+}
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    background: linear-gradient(90deg, #4f46e5, #7c3aed);
+}
+.stTextInput>div>div>input {
+    background-color: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    border-radius: 8px;
+}
+.stTextInput>div>div>input:focus {
+    border-color: #38BDF8;
+    box-shadow: 0 0 0 1px #38BDF8;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -86,11 +124,12 @@ if not st.session_state.token:
             l_email = st.text_input("Email")
             l_pwd = st.text_input("Password", type="password")
             if st.form_submit_button("Login"):
-                if login(l_email, l_pwd):
-                    st.success("Logged in successfully!")
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials.")
+                with st.spinner("Authenticating..."):
+                    if login(l_email, l_pwd):
+                        st.success("Logged in successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials.")
                     
     with tab_register:
         with st.form("register_form"):
@@ -98,10 +137,11 @@ if not st.session_state.token:
             r_email = st.text_input("Email")
             r_pwd = st.text_input("Password", type="password")
             if st.form_submit_button("Register"):
-                if register(r_email, r_pwd, r_name):
-                    st.success("Registered! You can now log in.")
-                else:
-                    st.error("Registration failed. Email might exist.")
+                with st.spinner("Creating account..."):
+                    if register(r_email, r_pwd, r_name):
+                        st.success("Registered! You can now log in.")
+                    else:
+                        st.error("Registration failed. Email might exist.")
     st.stop()
 
 # --- Main App (Logged In) ---
@@ -141,8 +181,9 @@ if projects_res.status_code == 200:
     with st.sidebar.expander("➕ New Project"):
         new_p_name = st.text_input("Project Name")
         if st.button("Create"):
-            requests.post(f"{API_BASE_URL}/projects", json={"name": new_p_name}, headers=get_auth_headers())
-            st.rerun()
+            with st.spinner("Creating project..."):
+                requests.post(f"{API_BASE_URL}/projects", json={"name": new_p_name}, headers=get_auth_headers())
+                st.rerun()
 st.sidebar.divider()
 
 st.sidebar.title("🖥️ System Health")
@@ -404,10 +445,13 @@ with tab_live:
                             <img id="videoStream" style="max-width: 100%; height: auto;" />
                             <script>
                                 var ws = new WebSocket("ws://localhost:8000/api/v1/streams/live/{s['id']}?token={st.session_state.token}");
+                                ws.binaryType = "blob";
                                 var img = document.getElementById("videoStream");
                                 ws.onmessage = function(event) {{
-                                    var data = JSON.parse(event.data);
-                                    img.src = "data:image/jpeg;base64," + data.frame;
+                                    if (img.src) {{
+                                        URL.revokeObjectURL(img.src);
+                                    }}
+                                    img.src = URL.createObjectURL(event.data);
                                 }};
                             </script>
                         </body>

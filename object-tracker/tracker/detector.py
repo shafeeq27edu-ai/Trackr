@@ -10,6 +10,13 @@ torch.load = safe_load
 
 from ultralytics import YOLO
 import supervision as sv
+import os
+
+# Optimize PyTorch CPU threading for CV workloads
+if not torch.cuda.is_available():
+    import multiprocessing
+    cores = max(1, multiprocessing.cpu_count() // 2)
+    torch.set_num_threads(cores)
 
 from core.models.base import BaseDetector
 from core.plugin_manager import plugin_manager
@@ -48,7 +55,7 @@ class YoloDetectorPlugin(BaseDetector):
             from core.exceptions import ModelLoadingError
             raise ModelLoadingError(f"Failed to load model {self.model_name}: {str(e)}")
     
-    def detect(self, frame: np.ndarray, conf_threshold: float = 0.25) -> sv.Detections:
+    def detect(self, frame: np.ndarray, conf_threshold: float = 0.25, imgsz: int = 640) -> sv.Detections:
         """
         Runs inference on a single frame and returns supervision Detections.
         """
@@ -57,7 +64,7 @@ class YoloDetectorPlugin(BaseDetector):
             
         # Run inference on the frame under inference_mode for memory/speed gains
         with torch.inference_mode():
-            result = self.model(frame, verbose=False, half=self.use_half)[0]
+            result = self.model(frame, verbose=False, half=self.use_half, imgsz=imgsz)[0]
         
         # Convert Ultralytics output to supervision Detections format
         detections = sv.Detections.from_ultralytics(result)

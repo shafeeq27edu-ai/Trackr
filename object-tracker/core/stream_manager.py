@@ -97,6 +97,14 @@ class StreamManager:
                 except Exception:
                     self.disconnect_client(connection, stream_id)
 
+    async def broadcast_bytes_to_stream(self, stream_id: str, data: bytes):
+        if stream_id in self._active_connections:
+            for connection in list(self._active_connections[stream_id]):
+                try:
+                    await connection.send_bytes(data)
+                except Exception:
+                    self.disconnect_client(connection, stream_id)
+
     async def connect_status_client(self, websocket: WebSocket):
         await websocket.accept()
         self._status_connections.append(websocket)

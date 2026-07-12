@@ -10,10 +10,99 @@ from tracker.analytics import AnalyticsEngine
 from core.stream_manager import StreamManager, StreamStatus
 from core.logging import logger
 
+import threading
+
+class StreamReader:
+    """Background thread to continuously grab the latest frame, skipping backlog."""
+    def __init__(self, source_id):
+        self.source_id = source_id
+        self.cap = None
+        self.ret = False
+        self.frame = None
+        self.running = True
+        self.lock = threading.Lock()
+        self.is_opened = False
+        self.fps = 30
+        self.frame_id = 0
+        
+    def start(self):
+        self.cap = cv2.VideoCapture(self.source_id)
+        if self.cap.isOpened():
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self.is_opened = True
+            fps_prop = self.cap.get(cv2.CAP_PROP_FPS)
+            if fps_prop > 0:
+                self.fps = fps_prop
+            self.ret, self.frame = self.cap.read()
+            self.thread = threading.Thread(target=self._update, daemon=True)
+            self.thread.start()
+            
+    def _update(self):
+        while self.running and self.cap.isOpened():
+            ret, frame = self.cap.read()
+            with self.lock:
+                self.ret = ret
+                if ret:
+                    self.frame = frame
+                    self.frame_id += 1
+                    
+    def read(self):
+        with self.lock:
+            return self.ret, (self.frame.copy() if self.frame is not None else None), self.frame_id
+            
+    def release(self):
+        self.running = False
+        if hasattr(self, 'thread'):
+            self.thread.join(timeout=1.0)
+        if self.cap:
+            self.cap.release()
+
+class InferenceWorker:
+    """Background thread to run heavy YOLO inference decoupled from the video stream."""
+    def __init__(self, detector, tracker, reader):
+        self.detector = detector
+        self.tracker = tracker
+        self.reader = reader
+        self.latest_detections = None
+        self.detections_id = 0
+        self.running = True
+        self.lock = threading.Lock()
+        
+    def start(self):
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+        
+    def _run(self):
+        last_frame_id = -1
+        while self.running:
+            ret, frame, frame_id = self.reader.read()
+            if not ret or frame is None or frame_id == last_frame_id:
+                time.sleep(0.01)
+                continue
+                
+            last_frame_id = frame_id
+                
+            # Heavy inference on downscaled grid for speed (imgsz=320)
+            detections = self.detector.detect(frame, 0.3, imgsz=320)
+            detections = self.tracker.update(detections)
+            
+            with self.lock:
+                self.latest_detections = detections
+                self.detections_id += 1
+                
+    def get_latest(self):
+        with self.lock:
+            return self.latest_detections, self.detections_id
+            
+    def stop(self):
+        self.running = False
+        if hasattr(self, 'thread'):
+            self.thread.join(timeout=1.0)
+
 async def process_live_stream(stream_id: str, source: str, stream_manager: StreamManager, detector: YoloDetector):
     """
     Continuous background loop for processing a live video stream.
-    Drops frames if processing falls behind.
+    Uses StreamReader for zero-latency frame skipping and InferenceWorker to decouple AI.
     """
     logger.info(f"Starting live stream: {stream_id} from source: {source}")
     stream_manager.update_stream(stream_id, status=StreamStatus.PLAYING)
@@ -24,19 +113,19 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
     except ValueError:
         source_id = source
         
-    cap = cv2.VideoCapture(source_id)
-    if not cap.isOpened():
+    reader = StreamReader(source_id)
+    await asyncio.to_thread(reader.start)
+    
+    if not reader.is_opened:
         logger.error(f"Failed to open stream source: {source}")
         stream_manager.update_stream(stream_id, status=StreamStatus.FAILED, error="Failed to open source")
         return
 
-    # Reduce camera buffering lag to ensure real-time latency
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
     tracker = ByteTrackerWrapper()
+    inference_worker = InferenceWorker(detector, tracker, reader)
+    inference_worker.start()
     # Assume 30fps for analytics initially, can adjust dynamically if needed
-    fps_prop = cap.get(cv2.CAP_PROP_FPS)
-    fps = fps_prop if fps_prop > 0 else 30
+    fps = reader.fps
     
     analytics = AnalyticsEngine(log_dir="outputs/live", fps=fps)
     
@@ -49,6 +138,7 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
     last_process_time = time.time()
     frames_processed = 0
     start_time = time.time()
+    last_frame_id = -1
 
     try:
         while True:
@@ -57,45 +147,54 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
                 logger.info(f"Stream {stream_id} received stop signal.")
                 break
                 
-            ret, frame = cap.read()
-            if not ret:
+            # Read the latest frame from the background thread
+            ret, frame, frame_id = reader.read()
+            
+            if frame_id == last_frame_id:
+                # No new frame from the camera yet, sleep briefly to prevent 1000 FPS CPU spikes
+                await asyncio.sleep(0.01)
+                continue
+                
+            last_frame_id = frame_id
+            
+            if not ret or frame is None:
                 logger.warning(f"Stream {stream_id} ended or failed to read frame. Attempting reconnect in 2s...")
                 await asyncio.sleep(2)
-                cap = cv2.VideoCapture(source_id)
+                reader.release()
+                reader = StreamReader(source_id)
+                await asyncio.to_thread(reader.start)
                 continue
                 
             # Frame skipping (simple approach): 
-            # If we are processing slower than the camera produces frames, we can grab to clear buffer.
-            # (cv2.VideoCapture implicitly buffers, calling grab() helps skip).
-            # We will process this frame, then yield to asyncio to send.
+            # Detections are generated completely asynchronously by InferenceWorker.
+            # We simply fetch the latest available boxes to overlay on this frame, guaranteeing zero latency.
             
-            # 1. Detect
-            detections = detector.detect(frame, conf_threshold=0.3)
+            detections, detections_id = inference_worker.get_latest()
             
-            # 2. Track
-            detections = tracker.update(detections)
-            
-            # 3. Analytics
-            analytics.process_detections(detections, detector.model.names, frames_processed)
-            
-            # 4. Annotate (optimize: in-place modification of frame is safe for webcam loops)
             annotated_frame = frame
-            if detections.tracker_id is not None and len(detections.tracker_id) > 0:
-                labels = []
-                for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id):
-                    speed = analytics.get_track_speed(tracker_id)
-                    direction = analytics.get_track_direction(tracker_id)
-                    
-                    label_parts = [f"#{tracker_id} {detector.model.names[class_id]}"]
-                    if speed > 0:
-                        label_parts.append(f"{speed:.1f} km/h")
-                    if direction != "Unknown":
-                        label_parts.append(direction)
-                    labels.append(" | ".join(label_parts))
-                    
-                annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
-                annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
-                annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
+            if detections is not None:
+                # 3. Analytics (Only process if this is a new set of detections to avoid double counting)
+                if not hasattr(stream, 'last_detections_id') or stream.last_detections_id != detections_id:
+                    analytics.process_detections(detections, detector.model.names, frames_processed)
+                    stream.last_detections_id = detections_id
+                
+                # 4. Annotate (optimize: in-place modification of frame is safe for webcam loops)
+                if detections.tracker_id is not None and len(detections.tracker_id) > 0:
+                    labels = []
+                    for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id):
+                        speed = analytics.get_track_speed(tracker_id)
+                        direction = analytics.get_track_direction(tracker_id)
+                        
+                        label_parts = [f"#{tracker_id} {detector.model.names[class_id]}"]
+                        if speed > 0:
+                            label_parts.append(f"{speed:.1f} km/h")
+                        if direction != "Unknown":
+                            label_parts.append(direction)
+                        labels.append(" | ".join(label_parts))
+                        
+                    annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
+                    annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
+                    annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
                 
             # Embed analytics text (Optional, if we want it in the stream)
             summary_text = analytics.get_summary_text()
@@ -113,22 +212,9 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
                 
             # Encode frame to JPEG
             _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-            b64_frame = base64.b64encode(buffer).decode('utf-8')
             
-            # Push to WebSocket
-            message = {
-                "frame": b64_frame,
-                "fps": round(current_fps, 2),
-                "analytics": {
-                    "summary_text": summary_text,
-                    "traffic_stats": {
-                        "total_unique_objects": sum(len(ids) for ids in analytics.unique_counts.values()),
-                        "peak_occupancy": analytics.peak_occupancy,
-                    }
-                }
-            }
-            
-            await stream_manager.broadcast_to_stream(stream_id, message)
+            # Push raw binary blob to WebSocket
+            await stream_manager.broadcast_bytes_to_stream(stream_id, buffer.tobytes())
             
             # Recording logic
             if stream and stream.is_recording and stream.recording_path:
@@ -150,7 +236,9 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
         logger.error(f"Error in stream {stream_id}: {str(e)}", exc_info=True)
         stream_manager.update_stream(stream_id, status=StreamStatus.FAILED, error=str(e))
     finally:
-        cap.release()
+        if 'inference_worker' in locals():
+            inference_worker.stop()
+        reader.release()
         if stream and hasattr(stream, "writer") and stream.writer:
             stream.writer.release()
             stream.writer = None

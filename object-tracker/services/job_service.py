@@ -9,11 +9,14 @@ from tracker.detector import YoloDetector
 from services.video_service import process_video_file
 from typing import Optional
 
+from core.execution.base import ExecutionBackend
+
 class JobService:
-    def __init__(self, job_manager: JobManager, settings: Settings, detector: YoloDetector):
+    def __init__(self, job_manager: JobManager, settings: Settings, detector: YoloDetector, execution_backend: ExecutionBackend):
         self.job_manager = job_manager
         self.settings = settings
         self.detector = detector
+        self.execution_backend = execution_backend
 
     def upload_video(
         self, 
@@ -48,8 +51,8 @@ class JobService:
             
         logger.info(f"File saved to temp path: {input_path}")
             
-        # Kick off background task
-        background_tasks.add_task(
+        # Kick off processing using the dedicated execution backend
+        self.execution_backend.submit_job(
             process_video_file,
             input_path=input_path,
             output_path=output_path,
