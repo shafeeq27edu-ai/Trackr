@@ -1,7 +1,8 @@
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 import jwt
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from core.security import SECRET_KEY, ALGORITHM
 from db.database import get_db
 from db.models import User
@@ -9,7 +10,7 @@ from db.schemas import TokenData
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login", auto_error=False)
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
     token = request.headers.get("Authorization")
     if token and token.startswith("Bearer "):
         token = token.split(" ")[1]
@@ -29,7 +30,8 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     except jwt.PyJWTError:
         raise credentials_exception
         
-    user = db.query(User).filter(User.id == token_data.user_id).first()
+    result = await db.execute(select(User).where(User.id == token_data.user_id))
+    user = result.scalars().first()
     if user is None:
         raise credentials_exception
     return user

@@ -64,7 +64,7 @@ class YoloDetectorPlugin(BaseDetector):
                     self.model_name = onnx_path
                     
             self.model = YOLO(self.model_name)
-            if device:
+            if device and not self.model_name.endswith('.onnx'):
                 self.model.to(device)
         except Exception as e:
             from core.exceptions import ModelLoadingError

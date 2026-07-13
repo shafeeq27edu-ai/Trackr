@@ -9,7 +9,7 @@ router = APIRouter()
 @router.get("/performance")
 def get_performance_metrics(job_manager: JobManager = Depends(get_job_manager)):
     """Returns general performance metrics like processing throughput and active jobs."""
-    jobs = job_manager.list_jobs()
+    jobs = job_manager.get_all_jobs()
     active_jobs = [j for j in jobs.values() if j.status in [JobStatus.INITIALIZING, JobStatus.PROCESSING]]
     
     return {
