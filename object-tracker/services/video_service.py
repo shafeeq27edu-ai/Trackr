@@ -137,7 +137,7 @@ def process_video_file(
         
         with sv.VideoSink(target_path=output_path, video_info=output_video_info, codec=codec) as sink:
             frame_idx = 0
-            batch_size = 4
+            batch_size = 1
             frame_batch = []
             
             def process_batch():
