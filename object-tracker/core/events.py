@@ -11,6 +11,7 @@ class EventType(str, Enum):
     FRAME_PROCESSED = "FrameProcessed"
     JOB_COMPLETED = "JobCompleted"
     JOB_FAILED = "JobFailed"
+    JOB_UPDATED = "JobUpdated"
     ANALYTICS_GENERATED = "AnalyticsGenerated"
     PLUGIN_LOADED = "PluginLoaded"
     MODEL_LOADED = "ModelLoaded"

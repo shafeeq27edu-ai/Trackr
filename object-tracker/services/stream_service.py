@@ -156,6 +156,7 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
     frames_processed = 0
     start_time = time.time()
     last_frame_id = -1
+    last_detections_id_local = -1
 
     try:
         while True:
@@ -196,9 +197,9 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
             annotated_frame = frame
             if detections is not None:
                 # 3. Analytics (Only process if this is a new set of detections to avoid double counting)
-                if not hasattr(stream, 'last_detections_id') or stream.last_detections_id != detections_id:
+                if last_detections_id_local != detections_id:
                     analytics.process_detections(detections, detector.names, frames_processed)
-                    stream.last_detections_id = detections_id
+                    last_detections_id_local = detections_id
                 
                 # 4. Annotate (optimize: in-place modification of frame is safe for webcam loops)
                 if detections.tracker_id is not None and len(detections.tracker_id) > 0:
