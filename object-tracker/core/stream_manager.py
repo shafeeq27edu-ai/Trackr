@@ -26,6 +26,12 @@ class LiveStream(BaseModel):
     is_recording: bool = False
     recording_path: Optional[str] = None
     
+    # Enhanced Metrics
+    frames_processed: int = 0
+    camera_connected: bool = False
+    active_websocket_clients: int = 0
+    total_detections: int = 0
+    
     # Non-pydantic fields
     task: Optional[Any] = Field(default=None, exclude=True)
     stop_event: Optional[Any] = Field(default=None, exclude=True)
@@ -83,10 +89,18 @@ class StreamManager:
         if stream_id not in self._active_connections:
             self._active_connections[stream_id] = []
         self._active_connections[stream_id].append(websocket)
+        
+        # Update metrics
+        if stream_id in self._streams:
+            self._streams[stream_id].active_websocket_clients = len(self._active_connections[stream_id])
 
     def disconnect_client(self, websocket: WebSocket, stream_id: str):
         if stream_id in self._active_connections and websocket in self._active_connections[stream_id]:
             self._active_connections[stream_id].remove(websocket)
+            
+            # Update metrics
+            if stream_id in self._streams:
+                self._streams[stream_id].active_websocket_clients = len(self._active_connections[stream_id])
 
     async def broadcast_to_stream(self, stream_id: str, message: dict):
         if stream_id in self._active_connections:

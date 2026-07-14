@@ -364,7 +364,7 @@ with tab_batch:
                                     col_data = []
                                     if traffic_stats:
                                         col_data.extend([
-                                            {"Metric": k.replace("_", " ").title(), "Value": v}
+                                            {"Metric": k.replace("_", " ").title(), "Value": str(v)}
                                             for k, v in traffic_stats.items()
                                         ])
                                     if dwell_times_sec:
@@ -394,6 +394,10 @@ with tab_batch:
                             
                         elif j['status'] == "FAILED":
                             st.error(f"Job Failed: {j.get('error', 'Unknown Error')}")
+                        elif j['status'] in ["INITIALIZING", "PROCESSING"]:
+                            st.info(f"Current Stage: {j.get('stage', 'Starting...')}")
+                            progress_val = float(j.get('progress', 0.0)) / 100.0
+                            st.progress(min(max(progress_val, 0.0), 1.0))
                             
                         if st.button("Delete Job", key=f"del_{j['id']}"):
                             requests.delete(f"{API_BASE_URL}/jobs/{j['id']}", headers=get_auth_headers())
@@ -435,6 +439,13 @@ with tab_live:
                     if st.button("🗑️ Delete", key=f"del_{s['id']}"):
                         requests.delete(f"{API_BASE_URL}/streams/{s['id']}", headers=get_auth_headers())
                         st.rerun()
+                        
+                if s.get("error"):
+                    st.error(f"⚠️ Error: {s['error']}")
+                
+                if s['status'] == "PLAYING":
+                    # Display stream stats
+                    st.caption(f"FPS: {s.get('fps', 0)} | Frames Processed: {s.get('frames_processed', 0)} | Detections: {s.get('total_detections', 0)}")
                 
                 if s['status'] == "PLAYING":
                     view_btn = st.button("👀 View Live Feed", key=f"view_{s['id']}")
@@ -444,18 +455,37 @@ with tab_live:
                         html_code = f"""
                         <!DOCTYPE html>
                         <html>
-                        <body style="margin:0; padding:0; background-color:#0e1117; display: flex; justify-content: center;">
-                            <img id="videoStream" style="max-width: 100%; height: auto;" />
+                        <body style="margin:0; padding:0; background-color:#0e1117; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-family: sans-serif;">
+                            <div id="status" style="margin-bottom: 10px; color: #38BDF8;">Connecting to stream...</div>
+                            <img id="videoStream" style="max-width: 100%; height: auto; border: 1px solid #333;" />
                             <script>
                                 var wsUrl = "{API_BASE_URL}".replace(/^http/, "ws");
                                 var ws = new WebSocket(wsUrl + "/streams/live/{s['id']}?token={st.session_state.token}");
                                 ws.binaryType = "blob";
                                 var img = document.getElementById("videoStream");
+                                var statusDiv = document.getElementById("status");
+                                
+                                ws.onopen = function() {{
+                                    statusDiv.innerText = "Connected - Waiting for frames...";
+                                }};
+                                
                                 ws.onmessage = function(event) {{
+                                    statusDiv.style.display = 'none'; // Hide status once frames arrive
                                     if (img.src) {{
                                         URL.revokeObjectURL(img.src);
                                     }}
                                     img.src = URL.createObjectURL(event.data);
+                                }};
+                                
+                                ws.onerror = function(error) {{
+                                    statusDiv.innerText = "Error: Connection lost or failed to connect.";
+                                    statusDiv.style.color = "#ef4444";
+                                }};
+                                
+                                ws.onclose = function() {{
+                                    statusDiv.innerText = "Connection closed.";
+                                    statusDiv.style.display = 'block';
+                                    statusDiv.style.color = "#ef4444";
                                 }};
                             </script>
                         </body>

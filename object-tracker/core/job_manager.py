@@ -82,6 +82,7 @@ class JobManager:
                 logger.error(f"Failed to create job in DB: {e}")
             
         event_bus.publish(EventType.JOB_CREATED, {"job_id": job.id, "filename": job.filename})
+        
         return job
 
     async def get_job(self, job_id: str) -> Optional[Job]:
@@ -186,8 +187,35 @@ class JobManager:
                 
         return job
 
-    def get_all_jobs(self) -> Dict[str, Job]:
-        return self._jobs.copy()
+    async def get_all_jobs(self) -> Dict[str, Job]:
+        jobs = self._jobs.copy()
+        
+        async with SessionLocal() as db:
+            result = await db.execute(select(JobDB))
+            for db_job in result.scalars().all():
+                if db_job.id not in jobs:
+                    analytics = None
+                    if db_job.analytics:
+                        analytics = json.loads(db_job.analytics)
+                        
+                    jobs[db_job.id] = Job(
+                        id=db_job.id,
+                        filename=db_job.filename,
+                        status=JobStatus(db_job.status),
+                        progress=db_job.progress,
+                        stage=db_job.stage,
+                        start_time=db_job.start_time,
+                        completion_time=db_job.completion_time,
+                        duration=db_job.duration,
+                        error=db_job.error,
+                        output_path=db_job.output_path,
+                        analytics=analytics,
+                        average_fps=db_job.average_fps,
+                        processing_throughput=db_job.processing_throughput,
+                        user_id=db_job.user_id,
+                        project_id=db_job.project_id
+                    )
+        return jobs
 
     async def delete_job(self, job_id: str) -> bool:
         if job_id in self._jobs:

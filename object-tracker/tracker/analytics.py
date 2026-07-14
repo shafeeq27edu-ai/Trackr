@@ -102,63 +102,68 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         active_ids = set(detections.tracker_id)
         
         for class_id, tracker_id, bbox in zip(detections.class_id, detections.tracker_id, detections.xyxy):
-                class_name = class_names[class_id]
-                self.tracker_classes[tracker_id] = class_name
+            try:
+                class_name = class_names[int(class_id)] if class_names else f"class_{class_id}"
+            except (IndexError, KeyError, TypeError):
+                class_name = f"class_{class_id}"
+            
+            self.tracker_classes[tracker_id] = class_name
                 
-                # Update unique counts using a Set to automatically deduplicate
-                if class_name not in self.unique_counts:
-                    self.unique_counts[class_name] = set()
-                self.unique_counts[class_name].add(tracker_id)
+            # Update unique counts using a Set to automatically deduplicate
+            if class_name not in self.unique_counts:
+                self.unique_counts[class_name] = set()
+            self.unique_counts[class_name].add(tracker_id)
+            
+            # Update Dwell Time logic
+            if tracker_id not in self.dwell_times:
+                self.dwell_times[tracker_id] = {'first': frame_idx, 'last': frame_idx}
+            else:
+                self.dwell_times[tracker_id]['last'] = frame_idx
+            
+            # Calculate bounding box center
+            center_x = (bbox[0] + bbox[2]) / 2.0
+            center_y = (bbox[1] + bbox[3]) / 2.0
+            current_pos = (center_x, center_y)
+            
+            # Maintain position history (capped to last 10 entries)
+            if tracker_id not in self.track_history:
+                self.track_history[tracker_id] = []
+            self.track_history[tracker_id].append((center_x, center_y, frame_idx))
+            if len(self.track_history[tracker_id]) > 10:
+                self.track_history[tracker_id] = self.track_history[tracker_id][-10:]
+            
+            # Calculate Speed & Direction (smoothed over 5 frames)
+            speed_kmh = 0.0
+            direction = "Unknown"
+            history = self.track_history[tracker_id]
+            
+            if len(history) >= 5:
+                prev_x, prev_y, prev_frame = history[-5]
+                dx = center_x - prev_x
+                dy = center_y - prev_y
+                frame_diff = frame_idx - prev_frame
                 
-                # Update Dwell Time logic
-                if tracker_id not in self.dwell_times:
-                    self.dwell_times[tracker_id] = {'first': frame_idx, 'last': frame_idx}
-                else:
-                    self.dwell_times[tracker_id]['last'] = frame_idx
-                
-                # Calculate bounding box center
-                center_x = (bbox[0] + bbox[2]) / 2.0
-                center_y = (bbox[1] + bbox[3]) / 2.0
-                
-                # Maintain position history (capped to last 10 entries)
-                if tracker_id not in self.track_history:
-                    self.track_history[tracker_id] = []
-                self.track_history[tracker_id].append((center_x, center_y, frame_idx))
-                if len(self.track_history[tracker_id]) > 10:
-                    self.track_history[tracker_id] = self.track_history[tracker_id][-10:]
-                
-                # Calculate Speed & Direction (smoothed over 5 frames)
-                speed_kmh = 0.0
-                direction = "Unknown"
-                history = self.track_history[tracker_id]
-                
-                if len(history) >= 5:
-                    prev_x, prev_y, prev_frame = history[-5]
-                    dx = center_x - prev_x
-                    dy = center_y - prev_y
-                    frame_diff = frame_idx - prev_frame
+                if frame_diff > 0:
+                    dt = frame_diff / self.fps
+                    dist_px = (dx**2 + dy**2)**0.5
+                    # Conversion: 0.05 meters/pixel and 3.6 for km/h
+                    speed_kmh = (dist_px * 0.05 / dt) * 3.6
                     
-                    if frame_diff > 0:
-                        dt = frame_diff / self.fps
-                        dist_px = (dx**2 + dy**2)**0.5
-                        # Conversion: 0.05 meters/pixel and 3.6 for km/h
-                        speed_kmh = (dist_px * 0.05 / dt) * 3.6
+                    # Determine dominant direction
+                    if abs(dx) > abs(dy):
+                        direction = "East" if dx > 0 else "West"
+                    else:
+                        direction = "South" if dy > 0 else "North" # y-down
                         
-                        # Determine dominant direction
-                        if abs(dx) > abs(dy):
-                            direction = "East" if dx > 0 else "West"
-                        else:
-                            direction = "South" if dy > 0 else "North" # y-down
-                            
-                self.track_directions[tracker_id] = direction
-                # Cap track_speeds to last entry only
-                self.track_speeds[tracker_id] = [speed_kmh]
-                
-                # Log to CSV
-                self._csv_writer.writerow([current_time, frame_idx, tracker_id, class_name, f"{center_x:.2f}", f"{center_y:.2f}", f"{speed_kmh:.2f}", direction])
-                
-                # Update last-seen frame for this tracker
-                self._last_seen[tracker_id] = frame_idx
+            self.track_directions[tracker_id] = direction
+            # Cap track_speeds to last entry only
+            self.track_speeds[tracker_id] = [speed_kmh]
+            
+            # Log to CSV
+            self._csv_writer.writerow([current_time, frame_idx, tracker_id, class_name, f"{center_x:.2f}", f"{center_y:.2f}", f"{speed_kmh:.2f}", direction])
+            
+            # Update last-seen frame for this tracker
+            self._last_seen[tracker_id] = frame_idx
         
         # Evict stale trackers to prevent memory bloat on long videos/streams
         if frame_idx % self._eviction_interval == 0 and frame_idx > 0:

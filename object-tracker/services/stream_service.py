@@ -9,6 +9,7 @@ from tracker.tracker import ByteTrackerWrapper
 from tracker.analytics import AnalyticsEngine
 from core.stream_manager import StreamManager, StreamStatus
 from core.logging import logger
+from core.profiler import system_profiler
 
 import threading
 
@@ -26,20 +27,27 @@ class StreamReader:
         self.frame_id = 0
         
     def start(self):
+        logger.info(f"StreamReader: Attempting to open video source {self.source_id}")
         self.cap = cv2.VideoCapture(self.source_id)
         if self.cap.isOpened():
+            logger.info(f"StreamReader: Successfully opened video source {self.source_id}")
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             self.is_opened = True
             fps_prop = self.cap.get(cv2.CAP_PROP_FPS)
             if fps_prop > 0:
                 self.fps = fps_prop
             self.ret, self.frame = self.cap.read()
+            if not self.ret:
+                logger.warning(f"StreamReader: Opened source {self.source_id} but failed to read initial frame.")
             self.thread = threading.Thread(target=self._update, daemon=True)
             self.thread.start()
+        else:
+            logger.error(f"StreamReader: Failed to open video source {self.source_id}")
             
     def _update(self):
         while self.running and self.cap.isOpened():
-            ret, frame = self.cap.read()
+            with system_profiler.measure("camera_read"):
+                ret, frame = self.cap.read()
             with self.lock:
                 self.ret = ret
                 if ret:
@@ -83,8 +91,17 @@ class InferenceWorker:
             last_frame_id = frame_id
                 
             # Heavy inference on downscaled grid for speed
-            detections = self.detector.detect(frame, 0.25, imgsz=640)
-            detections = self.tracker.update(detections)
+            t0 = time.time()
+            with system_profiler.measure("yolo_inference"):
+                detections = self.detector.detect(frame, 0.25, imgsz=640)
+            t1 = time.time()
+            with system_profiler.measure("tracking"):
+                detections = self.tracker.update(detections)
+            t2 = time.time()
+            
+            # Throttle logging to prevent spam, log every 100th inference
+            if self.detections_id % 100 == 0:
+                logger.debug(f"InferenceWorker: detect={t1-t0:.3f}s, track={t2-t1:.3f}s")
             
             with self.lock:
                 self.latest_detections = detections
@@ -118,7 +135,7 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
     
     if not reader.is_opened:
         logger.error(f"Failed to open stream source: {source}")
-        stream_manager.update_stream(stream_id, status=StreamStatus.FAILED, error="Failed to open source")
+        stream_manager.update_stream(stream_id, status=StreamStatus.FAILED, error="Unable to open webcam. Camera may be in use.", camera_connected=False)
         return
 
     tracker = ByteTrackerWrapper()
@@ -159,10 +176,15 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
             
             if not ret or frame is None:
                 logger.warning(f"Stream {stream_id} ended or failed to read frame. Attempting reconnect in 2s...")
+                stream_manager.update_stream(stream_id, error="Camera feed lost. Reconnecting...", camera_connected=False)
                 await asyncio.sleep(2)
                 reader.release()
                 reader = StreamReader(source_id)
                 await asyncio.to_thread(reader.start)
+                if not reader.is_opened:
+                    stream_manager.update_stream(stream_id, status=StreamStatus.FAILED, error="Unable to reconnect to camera.")
+                    break
+                stream_manager.update_stream(stream_id, status=StreamStatus.PLAYING, error=None, camera_connected=True)
                 continue
                 
             # Frame skipping (simple approach): 
@@ -175,26 +197,30 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
             if detections is not None:
                 # 3. Analytics (Only process if this is a new set of detections to avoid double counting)
                 if not hasattr(stream, 'last_detections_id') or stream.last_detections_id != detections_id:
-                    analytics.process_detections(detections, detector.model.names, frames_processed)
+                    analytics.process_detections(detections, detector.names, frames_processed)
                     stream.last_detections_id = detections_id
                 
                 # 4. Annotate (optimize: in-place modification of frame is safe for webcam loops)
                 if detections.tracker_id is not None and len(detections.tracker_id) > 0:
-                    labels = []
-                    for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id):
-                        speed = analytics.get_track_speed(tracker_id)
-                        direction = analytics.get_track_direction(tracker_id)
-                        
-                        label_parts = [f"#{tracker_id} {detector.model.names[class_id]}"]
-                        if speed > 0:
-                            label_parts.append(f"{speed:.1f} km/h")
-                        if direction != "Unknown":
-                            label_parts.append(direction)
-                        labels.append(" | ".join(label_parts))
-                        
-                    annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
-                    annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
-                    annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
+                    with system_profiler.measure("annotation"):
+                        labels = []
+                        for class_id, confidence, tracker_id in zip(detections.class_id, detections.confidence, detections.tracker_id):
+                            speed = analytics.get_track_speed(tracker_id)
+                            direction = analytics.get_track_direction(tracker_id)
+                            try:
+                                class_name = detector.names[int(class_id)] if getattr(detector, 'names', None) else f"class_{class_id}"
+                            except (IndexError, KeyError, TypeError):
+                                class_name = f"class_{class_id}"
+                            label_parts = [f"#{tracker_id} {class_name}"]
+                            if speed > 0:
+                                label_parts.append(f"{speed:.1f} km/h")
+                            if direction != "Unknown":
+                                label_parts.append(direction)
+                            labels.append(" | ".join(label_parts))
+                            
+                        annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
+                        annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
+                        annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
                 
             # Embed analytics text (Optional, if we want it in the stream)
             summary_text = analytics.get_summary_text()
@@ -208,13 +234,24 @@ async def process_live_stream(stream_id: str, source: str, stream_manager: Strea
             
             # Throttle stream updates
             if frames_processed % 15 == 0:
-                stream_manager.update_stream(stream_id, fps=round(current_fps, 2))
+                stream_manager.update_stream(
+                    stream_id, 
+                    fps=round(current_fps, 2),
+                    frames_processed=frames_processed,
+                    camera_connected=True,
+                    total_detections=analytics.total_detections if hasattr(analytics, 'total_detections') else 0
+                )
                 
             # Encode frame to JPEG
-            _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            with system_profiler.measure("video_encode"):
+                _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             
             # Push raw binary blob to WebSocket
-            await stream_manager.broadcast_bytes_to_stream(stream_id, buffer.tobytes())
+            try:
+                with system_profiler.measure("websocket_send"):
+                    await stream_manager.broadcast_bytes_to_stream(stream_id, buffer.tobytes())
+            except Exception as e:
+                logger.error(f"Stream {stream_id} WebSocket broadcast failed: {e}")
             
             # Recording logic
             if stream and stream.is_recording and stream.recording_path:

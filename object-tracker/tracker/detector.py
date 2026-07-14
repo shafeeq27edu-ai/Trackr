@@ -1,12 +1,14 @@
 import numpy as np
 import torch
 from typing import List
+from typing import List, Dict, Any, Union
 
-# Fix for PyTorch 2.6+ weights_only=True default breaking older ultralytics
-original_load = torch.load
+# PyTorch 2.6 compatibility workaround for ultralytics loading weights
+_original_load = torch.load
 def safe_load(*args, **kwargs):
-    kwargs.setdefault('weights_only', False)
-    return original_load(*args, **kwargs)
+    if "weights_only" not in kwargs:
+        kwargs["weights_only"] = False
+    return _original_load(*args, **kwargs)
 torch.load = safe_load
 
 from ultralytics import YOLO
@@ -52,18 +54,23 @@ class YoloDetectorPlugin(BaseDetector):
         
         # Try to use ONNX for CPU inference acceleration
         try:
+            # Always load the PyTorch model first to extract metadata
+            pt_model = YOLO(self.model_name.replace('.onnx', '.pt') if self.model_name.endswith('.onnx') else self.model_name)
+            # Store names dictionary directly on the detector
+            self.names = getattr(pt_model, 'names', {})
+            
             onnx_path = self.model_name.replace('.pt', '.onnx')
             if device == "cpu" and self.model_name.endswith('.pt'):
                 if not os.path.exists(onnx_path) and os.path.exists(self.model_name):
                     logger.info(f"Exporting {self.model_name} to ONNX for CPU acceleration...")
-                    temp_model = YOLO(self.model_name)
-                    temp_model.export(format="onnx", imgsz=640, half=False, simplify=True)
+                    pt_model.export(format="onnx", imgsz=640, half=False, simplify=True)
                 
                 if os.path.exists(onnx_path):
                     logger.info(f"Loading accelerated ONNX model: {onnx_path}")
                     self.model_name = onnx_path
                     
-            self.model = YOLO(self.model_name)
+            self.model = YOLO(self.model_name, task='detect')
+                
             if device and not self.model_name.endswith('.onnx'):
                 self.model.to(device)
         except Exception as e:

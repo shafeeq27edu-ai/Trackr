@@ -102,7 +102,7 @@ async def get_job_report(job_id: str, job_manager: JobManager = Depends(get_job_
 
 @router.get("/jobs")
 async def list_jobs(job_manager: JobManager = Depends(get_job_manager), current_user: User = Depends(get_current_user)):
-    jobs = job_manager.get_all_jobs()
+    jobs = await job_manager.get_all_jobs()
     # Filter by user
     user_jobs = [job.model_dump() for job in jobs.values() if job.user_id == current_user.id]
     return {"jobs": user_jobs}

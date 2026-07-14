@@ -55,10 +55,12 @@ def process_video_file(
     logger.info(f"Starting processing for video: {input_path}")
     start_time = time.time()
     
+    import asyncio
+    
     if not os.path.exists(input_path):
         error_msg = f"Source video not found at {input_path}"
         logger.error(error_msg)
-        job_manager.update_job(job_id, status=JobStatus.FAILED, error=error_msg)
+        asyncio.run(job_manager.update_job(job_id, status=JobStatus.FAILED, error=error_msg))
         raise FileNotFoundError(error_msg)
         
     job_dir = os.path.dirname(output_path)
@@ -97,7 +99,7 @@ def process_video_file(
 
     try:
         total_frames = video_info.total_frames
-        job_manager.update_job(job_id, status=JobStatus.PROCESSING, stage="Processing frames")
+        asyncio.run(job_manager.update_job(job_id, status=JobStatus.PROCESSING, stage="Processing frames"))
         
         # We need an empty canvas for the heatmap to accumulate over the entire video
         if use_heatmap:
@@ -151,7 +153,7 @@ def process_video_file(
                     b_detections = tracker.update(b_detections)
                     
                     # 3. Process Analytics & Zone Triggers
-                    analytics.process_detections(b_detections, detector.model.names, frame_idx)
+                    analytics.process_detections(b_detections, detector.names, frame_idx)
                     
                     has_tracks = b_detections.tracker_id is not None and len(b_detections.tracker_id) > 0
                     
@@ -173,7 +175,12 @@ def process_video_file(
                             speed = analytics.get_track_speed(tracker_id)
                             direction = analytics.get_track_direction(tracker_id)
                             
-                            label_parts = [f"#{tracker_id} {detector.model.names[class_id]}"]
+                            try:
+                                class_name = detector.names[int(class_id)] if getattr(detector, 'names', None) else f"class_{class_id}"
+                            except (IndexError, KeyError, TypeError):
+                                class_name = f"class_{class_id}"
+                                
+                            label_parts = [f"#{tracker_id} {class_name}"]
                             if speed > 0:
                                 label_parts.append(f"{speed:.1f} km/h")
                             if direction != "Unknown":
@@ -203,7 +210,7 @@ def process_video_file(
                     if frame_idx % (10 * stride) == 0 or frame_idx >= total_frames:
                         progress_percentage = min((frame_idx / total_frames) * 100, 100.0) if total_frames > 0 else 0
                         current_fps = frame_idx / (time.time() - start_time)
-                        job_manager.update_job(job_id, progress=progress_percentage, average_fps=current_fps)
+                        asyncio.run(job_manager.update_job(job_id, progress=progress_percentage, average_fps=current_fps))
                 
                 frame_batch.clear()
 
@@ -230,7 +237,7 @@ def process_video_file(
         # Post-process with FFmpeg only if we fell back to mp4v (not browser-compatible)
         if codec != "avc1":
             import subprocess
-            job_manager.update_job(job_id, status=JobStatus.PROCESSING, stage="Finalizing Video (Encoding)")
+            asyncio.run(job_manager.update_job(job_id, status=JobStatus.PROCESSING, stage="Finalizing Video (Encoding)"))
             temp_output = output_path + ".temp.mp4"
             os.rename(output_path, temp_output)
             try:
@@ -267,7 +274,7 @@ def process_video_file(
             # We could do storage.save(output_path, open(output_path, 'rb'))
             pass # Skipping actual move for this milestone to avoid breaking API, assuming local.
             
-        job_manager.update_job(
+        asyncio.run(job_manager.update_job(
             job_id, 
             status=JobStatus.COMPLETED, 
             output_path=output_path,
@@ -275,7 +282,7 @@ def process_video_file(
             stage="Completed",
             average_fps=final_fps,
             processing_throughput=final_fps
-        )
+        ))
         
         # Explicitly store heatmap path in the job state dict to ensure API can find it
         # (Since Job model doesn't strictly have a heatmap_path, we'll store it by convention in output_path dir)
@@ -284,5 +291,5 @@ def process_video_file(
     
     except Exception as e:
         logger.error(f"Error during video processing: {str(e)}", exc_info=True)
-        job_manager.update_job(job_id, status=JobStatus.FAILED, error=str(e), stage="Failed")
+        asyncio.run(job_manager.update_job(job_id, status=JobStatus.FAILED, error=str(e), stage="Failed"))
         raise VideoProcessingError(f"Failed to process video: {str(e)}")

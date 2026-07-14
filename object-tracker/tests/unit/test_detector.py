@@ -38,7 +38,7 @@ def mock_yolo_model():
 def test_yolo_detector_initialization(mock_yolo_model):
     detector = YoloDetector("dummy_path.pt")
     detector.load_model()
-    mock_yolo_model.assert_called_once_with("dummy_path.pt")
+    mock_yolo_model.assert_called_once_with("dummy_path.pt", task='detect')
     assert detector.model.names[0] == "person"
 
 def test_yolo_detector_invalid_path():
