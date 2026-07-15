@@ -27,6 +27,8 @@ class StreamReader:
         self.is_opened = False
         self.fps = 30
         self.frame_id = 0
+        # Detect if source is a file/URL (non-integer) vs a live device (webcam)
+        self.is_live = isinstance(source_id, int)
 
     def start(self):
         logger.info(f"StreamReader: Attempting to open video source {self.source_id}")
@@ -52,11 +54,27 @@ class StreamReader:
         while self.running and self.cap.isOpened():
             with system_profiler.measure("camera_read"):
                 ret, frame = self.cap.read()
+
+            if not ret:
+                if not self.is_live:
+                    # Finite video file reached EOF — loop back to start
+                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    continue
+                else:
+                    # Live source failed — surface the failure
+                    with self.lock:
+                        self.ret = False
+                    time.sleep(0.01)
+                    continue
+
             with self.lock:
                 self.ret = ret
-                if ret:
-                    self.frame = frame
-                    self.frame_id += 1
+                self.frame = frame
+                self.frame_id += 1
+
+            # Throttle to source FPS to prevent consuming CPU at max speed
+            if self.fps > 0:
+                time.sleep(1.0 / self.fps)
 
     def read(self):
         with self.lock:
@@ -190,6 +208,10 @@ async def process_live_stream(
             last_frame_id = frame_id
 
             if not ret or frame is None:
+                if not reader.is_live:
+                    # Finite video file — the reader auto-loops, just wait a moment
+                    await asyncio.sleep(0.05)
+                    continue
                 logger.warning(
                     f"Stream {stream_id} ended or failed to read frame. Attempting reconnect in 2s..."
                 )

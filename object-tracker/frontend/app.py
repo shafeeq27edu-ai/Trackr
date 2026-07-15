@@ -508,16 +508,22 @@ with tab_batch:
 with tab_live:
     st.header("🔴 Live Video Streams")
     with st.expander("➕ Add New Stream"):
-        source_input = st.text_input("Stream Source (e.g., '0' for webcam, or RTSP URL)", value="0")
-        if st.button("Add Stream"):
-            res = requests.post(
-                f"{API_BASE_URL}/streams", json={"source": source_input}, headers=get_auth_headers()
+        with st.form("add_stream_form", clear_on_submit=True):
+            source_input = st.text_input(
+                "Stream Source (e.g., '0' for webcam, or RTSP URL)", value="0"
             )
-            if res.status_code == 200:
-                st.success("Stream added!")
-                st.rerun()
-            else:
-                st.error(f"Failed to add stream: {res.status_code} - {res.text}")
+            submitted = st.form_submit_button("Add Stream")
+            if submitted:
+                res = requests.post(
+                    f"{API_BASE_URL}/streams",
+                    json={"source": source_input},
+                    headers=get_auth_headers(),
+                )
+                if res.status_code == 200:
+                    st.success("Stream added!")
+                    st.rerun()
+                else:
+                    st.error(f"Failed to add stream: {res.status_code} - {res.text}")
 
     st.divider()
     streams_res = requests.get(f"{API_BASE_URL}/streams", headers=get_auth_headers())
@@ -575,7 +581,7 @@ with tab_live:
                             <div id="status" style="margin-bottom: 10px; color: #38BDF8;">Connecting to stream...</div>
                             <img id="videoStream" style="max-width: 100%; height: auto; border: 1px solid #333;" />
                             <script>
-                                var wsUrl = "ws://" + window.location.hostname + ":8000/api/v1";
+                                var wsUrl = "ws://" + window.parent.location.hostname + ":8000/api/v1";
                                 var ws = new WebSocket(wsUrl + "/streams/live/{s['id']}?token={st.session_state.token}");
                                 ws.binaryType = "blob";
                                 var img = document.getElementById("videoStream");
