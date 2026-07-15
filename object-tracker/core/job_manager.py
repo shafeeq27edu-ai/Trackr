@@ -248,7 +248,7 @@ class JobManager:
                 )
         return jobs
 
-    async def get_jobs_by_user(self, user_id: str) -> List[Job]:
+    async def get_jobs_by_user(self, user_id: str) -> list[Job]:
         jobs = []
 
         async with SessionLocal() as db:

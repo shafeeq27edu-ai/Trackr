@@ -5,7 +5,7 @@ from core.job_manager import JobManager, JobStatus, Job
 from config.settings import Settings
 from core.exceptions import UnsupportedFormatError
 from core.logging import logger
-from typing import Optional
+from typing import Optional, Any
 
 from core.execution.base import ExecutionBackend
 
@@ -59,7 +59,7 @@ class JobService:
         self,
         job_manager: JobManager,
         settings: Settings,
-        detector: YoloDetector,
+        detector: Any,
         execution_backend: ExecutionBackend,
     ):
         self.job_manager = job_manager
