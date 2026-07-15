@@ -10,6 +10,7 @@ from db.schemas import TokenData
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login", auto_error=False)
 
+
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
     token = request.headers.get("Authorization")
     if token and token.startswith("Bearer "):
@@ -29,7 +30,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
         token_data = TokenData(user_id=user_id)
     except jwt.PyJWTError:
         raise credentials_exception
-        
+
     result = await db.execute(select(User).where(User.id == token_data.user_id))
     user = result.scalars().first()
     if user is None:

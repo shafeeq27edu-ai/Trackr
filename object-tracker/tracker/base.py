@@ -3,6 +3,7 @@ from abc import abstractmethod
 
 from core.plugin_manager import BasePlugin
 
+
 class BaseTracker(BasePlugin):
     """Base class for all tracking algorithms."""
 

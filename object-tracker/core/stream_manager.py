@@ -7,12 +7,14 @@ from fastapi import WebSocket
 from pydantic import BaseModel, Field
 from datetime import datetime
 
+
 class StreamStatus(str, Enum):
     INITIALIZING = "INITIALIZING"
     PLAYING = "PLAYING"
     PAUSED = "PAUSED"
     STOPPED = "STOPPED"
     FAILED = "FAILED"
+
 
 class LiveStream(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -25,19 +27,21 @@ class LiveStream(BaseModel):
     error: Optional[str] = None
     is_recording: bool = False
     recording_path: Optional[str] = None
-    
+
     # Enhanced Metrics
     frames_processed: int = 0
     camera_connected: bool = False
     active_websocket_clients: int = 0
     total_detections: int = 0
-    
+
     # Non-pydantic fields
     task: Optional[Any] = Field(default=None, exclude=True)
     stop_event: Optional[Any] = Field(default=None, exclude=True)
 
+
 class StreamManager:
     """Manages active live streams and their connected WebSocket clients."""
+
     def __init__(self):
         self._streams: Dict[str, LiveStream] = {}
         # Mapping stream_id -> list of connected WebSockets
@@ -60,14 +64,14 @@ class StreamManager:
         stream = self._streams.get(stream_id)
         if not stream:
             return None
-        
+
         for key, value in kwargs.items():
             if hasattr(stream, key):
                 setattr(stream, key, value)
-                
+
         if "status" in kwargs and stream.status in [StreamStatus.PLAYING]:
             stream.uptime = (datetime.utcnow() - stream.start_time).total_seconds()
-            
+
         return stream
 
     def remove_stream(self, stream_id: str) -> bool:
@@ -89,18 +93,25 @@ class StreamManager:
         if stream_id not in self._active_connections:
             self._active_connections[stream_id] = []
         self._active_connections[stream_id].append(websocket)
-        
+
         # Update metrics
         if stream_id in self._streams:
-            self._streams[stream_id].active_websocket_clients = len(self._active_connections[stream_id])
+            self._streams[stream_id].active_websocket_clients = len(
+                self._active_connections[stream_id]
+            )
 
     def disconnect_client(self, websocket: WebSocket, stream_id: str):
-        if stream_id in self._active_connections and websocket in self._active_connections[stream_id]:
+        if (
+            stream_id in self._active_connections
+            and websocket in self._active_connections[stream_id]
+        ):
             self._active_connections[stream_id].remove(websocket)
-            
+
             # Update metrics
             if stream_id in self._streams:
-                self._streams[stream_id].active_websocket_clients = len(self._active_connections[stream_id])
+                self._streams[stream_id].active_websocket_clients = len(
+                    self._active_connections[stream_id]
+                )
 
     async def broadcast_to_stream(self, stream_id: str, message: dict):
         if stream_id in self._active_connections:
@@ -131,7 +142,7 @@ class StreamManager:
         """Broadcasts the status of all streams to status clients."""
         if not self._status_connections:
             return
-            
+
         data = {s_id: stream.model_dump() for s_id, stream in self._streams.items()}
         for connection in list(self._status_connections):
             try:

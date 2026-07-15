@@ -7,23 +7,15 @@ settings = get_cached_settings()
 SQLALCHEMY_DATABASE_URL = settings.database_url
 
 # Async Engine for PostgreSQL
-engine = create_async_engine(
-    SQLALCHEMY_DATABASE_URL, 
-    echo=False, 
-    pool_size=20, 
-    max_overflow=10
-)
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=False, pool_size=20, max_overflow=10)
 
 # Async session factory
 SessionLocal = async_sessionmaker(
-    bind=engine, 
-    class_=AsyncSession, 
-    expire_on_commit=False,
-    autocommit=False, 
-    autoflush=False
+    bind=engine, class_=AsyncSession, expire_on_commit=False, autocommit=False, autoflush=False
 )
 
 Base = declarative_base()
+
 
 async def get_db():
     async with SessionLocal() as db:

@@ -10,6 +10,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from core.model_manager import ModelManager
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -17,39 +18,44 @@ async def lifespan(app: FastAPI):
     Initializes heavy models once on startup and makes them globally accessible via app.state.
     """
     logger.info("Initializing application startup sequence...")
-    
+
     try:
         # Discover plugins and models
         from core.plugin_manager import plugin_manager
         from core.models.registry import model_registry
+
         plugin_manager.discover_plugins()
         model_registry.discover_from_plugins()
-        
+
         # Load the ModelManager exactly once!
         from core.dependencies import get_model_manager, get_settings
-        
+
         # Pre-load the configured model
         model_manager = get_model_manager()
         model_manager.get_yolo_model(get_settings().yolo_model_path)
-        
-        logger.info("ModelManager, JobManager, and StreamManager loaded successfully. Ready to serve requests.")
+
+        logger.info(
+            "ModelManager, JobManager, and StreamManager loaded successfully. Ready to serve requests."
+        )
     except Exception as e:
         logger.critical(f"Failed to initialize model during startup: {str(e)}", exc_info=True)
         raise e
-        
+
     yield
-    
+
     logger.info("Application shutdown sequence initiated.")
     # Add any cleanup logic here
 
+
 app = FastAPI(
-    title="Trackr API", 
+    title="Trackr API",
     description="Computer Vision Object Tracking Backend",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -58,7 +64,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from core.exceptions import TrackrException, trackr_exception_handler, global_exception_handler, http_exception_handler, request_validation_exception_handler
+from core.exceptions import (
+    TrackrException,
+    trackr_exception_handler,
+    global_exception_handler,
+    http_exception_handler,
+    request_validation_exception_handler,
+)
 from fastapi import HTTPException
 from fastapi.exceptions import RequestValidationError
 

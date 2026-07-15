@@ -10,10 +10,11 @@ console = Console()
 # We can store client instance here globally for commands to use if needed
 client: Optional[TrackrClient] = None
 
+
 @app.callback()
 def main(
     url: str = typer.Option("http://localhost:8000", help="Trackr API URL"),
-    token: str = typer.Option(None, envvar="TRACKR_TOKEN", help="Trackr API Token")
+    token: str = typer.Option(None, envvar="TRACKR_TOKEN", help="Trackr API Token"),
 ):
     """
     Trackr CLI
@@ -21,11 +22,13 @@ def main(
     global client
     client = TrackrClient(base_url=url, token=token)
 
+
 @app.command()
 def init():
     """Scaffold a new Trackr project or plugin."""
     console.print("[green]Initialized a new Trackr environment.[/green]")
     console.print("To create a plugin, see the documentation at https://docs.trackr.io/plugins")
+
 
 @app.command()
 def models():
@@ -39,6 +42,7 @@ def models():
     except Exception as e:
         console.print(f"[red]Error fetching models: {e}[/red]")
 
+
 @app.command()
 def plugins():
     """List available plugins."""
@@ -51,6 +55,7 @@ def plugins():
     except Exception as e:
         console.print(f"[red]Error fetching plugins: {e}[/red]")
 
+
 @app.command()
 def analyze(video_path: str, project_id: Optional[str] = typer.Option(None, help="Project ID")):
     """Submit a video for full analytics processing."""
@@ -61,6 +66,7 @@ def analyze(video_path: str, project_id: Optional[str] = typer.Option(None, help
         console.print(f"Status: {job.status.value}")
     except Exception as e:
         console.print(f"[red]Error submitting job: {e}[/red]")
+
 
 @app.command()
 def status(job_id: str):
@@ -75,6 +81,7 @@ def status(job_id: str):
             console.print(f"Error: [red]{job.error}[/red]")
     except Exception as e:
         console.print(f"[red]Error getting job status: {e}[/red]")
+
 
 if __name__ == "__main__":
     app()

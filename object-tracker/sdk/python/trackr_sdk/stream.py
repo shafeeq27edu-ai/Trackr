@@ -3,11 +3,12 @@ import websockets
 import json
 from typing import Callable, Any
 
+
 class TrackrStreamClient:
     """WebSocket Client for real-time Trackr streams."""
-    
+
     def __init__(self, ws_url: str = "ws://localhost:8000"):
-        self.ws_url = ws_url.rstrip('/')
+        self.ws_url = ws_url.rstrip("/")
 
     async def connect_and_listen(self, stream_id: str, callback: Callable[[dict], Any]):
         """Connects to a tracking stream and invokes the callback on each frame data."""

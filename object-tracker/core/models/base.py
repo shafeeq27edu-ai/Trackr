@@ -4,6 +4,7 @@ from abc import abstractmethod
 
 from core.plugin_manager import BasePlugin
 
+
 class BaseDetector(BasePlugin):
     """Base class for all object detection models."""
 

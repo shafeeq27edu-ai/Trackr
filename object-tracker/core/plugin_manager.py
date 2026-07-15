@@ -9,9 +9,10 @@ from core.events import event_bus, EventType
 
 logger = logging.getLogger(__name__)
 
+
 class BasePlugin(ABC):
     """Base class for all plugins."""
-    
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -21,7 +22,7 @@ class BasePlugin(ABC):
     @abstractmethod
     def version(self) -> str:
         pass
-        
+
     @property
     def category(self) -> str:
         return "general"
@@ -33,6 +34,7 @@ class BasePlugin(ABC):
 
 class PluginManager:
     """Manages the discovery, loading, and lifecycle of plugins."""
+
     _instance = None
 
     def __new__(cls):
@@ -71,7 +73,7 @@ class PluginManager:
         try:
             plugin_instance = plugin_class()
             name = plugin_instance.name
-            
+
             if name in self._plugins:
                 logger.warning(f"Plugin {name} is already registered. Skipping.")
                 return
@@ -79,17 +81,21 @@ class PluginManager:
             plugin_instance.initialize()
             self._plugins[name] = plugin_instance
             self._plugin_classes[name] = plugin_class
-            
-            logger.info(f"Registered plugin: {name} v{plugin_instance.version} ({plugin_instance.category})")
-            event_bus.publish(EventType.PLUGIN_LOADED, {"name": name, "version": plugin_instance.version})
-            
+
+            logger.info(
+                f"Registered plugin: {name} v{plugin_instance.version} ({plugin_instance.category})"
+            )
+            event_bus.publish(
+                EventType.PLUGIN_LOADED, {"name": name, "version": plugin_instance.version}
+            )
+
         except Exception as e:
             logger.error(f"Failed to register plugin {plugin_class.__name__}: {e}")
 
     def get_plugin(self, name: str) -> BasePlugin:
         """Retrieves an initialized plugin by name."""
         return self._plugins.get(name)
-        
+
     def get_plugins_by_category(self, category: str) -> List[BasePlugin]:
         """Retrieves all loaded plugins of a specific category."""
         return [p for p in self._plugins.values() if p.category == category]
@@ -97,14 +103,10 @@ class PluginManager:
     def list_plugins(self) -> List[Dict[str, Any]]:
         """Returns metadata for all loaded plugins."""
         return [
-            {
-                "name": p.name,
-                "version": p.version,
-                "category": p.category,
-                "status": "enabled"
-            }
+            {"name": p.name, "version": p.version, "category": p.category, "status": "enabled"}
             for p in self._plugins.values()
         ]
+
 
 # Global plugin manager instance
 plugin_manager = PluginManager()

@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class StorageManager:
     _instance = None
 
@@ -22,5 +23,6 @@ class StorageManager:
 
     def get_provider(self) -> StorageProvider:
         return self.provider
+
 
 storage_manager = StorageManager()

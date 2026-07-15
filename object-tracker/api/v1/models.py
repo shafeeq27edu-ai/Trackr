@@ -7,13 +7,16 @@ from db.models import User
 
 router = APIRouter()
 
+
 class ModelLoadRequest(BaseModel):
     model_id: str
+
 
 @router.get("/models")
 def list_models(current_user: User = Depends(get_current_user)):
     """List all available models in the registry."""
     return {"models": model_registry.get_available_models()}
+
 
 @router.post("/models/load")
 def load_model(request: ModelLoadRequest, current_user: User = Depends(get_current_user)):

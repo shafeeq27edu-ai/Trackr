@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import BinaryIO, Optional
 
+
 class StorageProvider(ABC):
     """Abstract base class for storage providers."""
 

@@ -7,14 +7,17 @@ from db.models import User
 
 router = APIRouter()
 
+
 class PluginEnableRequest(BaseModel):
     plugin_name: str
     enable: bool
+
 
 @router.get("/plugins")
 def list_plugins(current_user: User = Depends(get_current_user)):
     """List all discovered plugins."""
     return {"plugins": plugin_manager.list_plugins()}
+
 
 @router.post("/plugins/enable")
 def enable_plugin(request: PluginEnableRequest, current_user: User = Depends(get_current_user)):
@@ -23,5 +26,8 @@ def enable_plugin(request: PluginEnableRequest, current_user: User = Depends(get
     plugin = plugin_manager.get_plugin(request.plugin_name)
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
-        
-    return {"status": "success", "message": f"Plugin {request.plugin_name} {'enabled' if request.enable else 'disabled'}"}
+
+    return {
+        "status": "success",
+        "message": f"Plugin {request.plugin_name} {'enabled' if request.enable else 'disabled'}",
+    }

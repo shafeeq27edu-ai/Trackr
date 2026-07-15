@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Dict
 
+
 class ExecutionBackend(ABC):
     """Abstract base class for distributed task execution."""
 

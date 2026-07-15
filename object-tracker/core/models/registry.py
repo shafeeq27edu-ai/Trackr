@@ -9,11 +9,13 @@ from core.plugin_manager import plugin_manager
 
 logger = logging.getLogger(__name__)
 
+
 class ModelRegistry:
     """
     Centralized registry for managing AI models.
     Handles discovery, lazy loading, caching, and hardware acceleration assignment.
     """
+
     _instance = None
 
     def __new__(cls):
@@ -60,19 +62,20 @@ class ModelRegistry:
         """
         from config.settings import get_cached_settings
         import gc
-        
+
         settings = get_cached_settings()
         max_cached = getattr(settings, "max_cached_models", 2)
 
         with self._lock:
             if model_id not in self._models:
                 # If not explicitly registered, we could try to instantiate a generic YOLO fallback,
-                # but it's better to explicitly register models. 
+                # but it's better to explicitly register models.
                 # For backward compatibility, we can assume YOLOv8 if it ends in .pt
                 if model_id.endswith(".pt"):
                     logger.info(f"Dynamically registering {model_id} as a YOLO model.")
                     # We need to import YoloDetector here to avoid circular imports
                     from tracker.detector import YoloDetectorPlugin
+
                     instance = YoloDetectorPlugin(model_name=model_id)
                     self._models[model_id] = instance
                 else:
@@ -88,7 +91,7 @@ class ModelRegistry:
                         # Clear model weights and release resources
                         if hasattr(oldest_instance, "model"):
                             oldest_instance.model = None
-                        
+
                         gc.collect()
                         if self.device == "cuda":
                             torch.cuda.empty_cache()
@@ -98,7 +101,9 @@ class ModelRegistry:
                 instance.load_model(device=self.device)
                 self._loaded_instances[model_id] = instance
                 self._loaded_order.append(model_id)
-                event_bus.publish(EventType.MODEL_LOADED, {"model_id": model_id, "device": self.device})
+                event_bus.publish(
+                    EventType.MODEL_LOADED, {"model_id": model_id, "device": self.device}
+                )
             else:
                 # Move to the end of LRU cache order
                 if model_id in self._loaded_order:
@@ -115,10 +120,11 @@ class ModelRegistry:
                     "id": model_id,
                     "name": model.name,
                     "version": model.version,
-                    "is_loaded": model_id in self._loaded_instances
+                    "is_loaded": model_id in self._loaded_instances,
                 }
                 for model_id, model in self._models.items()
             ]
+
 
 # Global registry instance
 model_registry = ModelRegistry()

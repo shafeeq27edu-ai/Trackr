@@ -2,20 +2,22 @@ from typing import Callable, Any, Dict
 from core.execution.base import ExecutionBackend
 from core.logging import logger
 
+
 class CeleryExecutionBackend(ExecutionBackend):
     """
     Distributed execution backend using Celery & Redis.
     """
-    
+
     def __init__(self, app):
         self.app = app
 
     def submit_job(self, task: Callable, *args, **kwargs) -> str:
         logger.info(f"Submitting job via Celery for task: {task.__name__}")
-        
+
         # If the task is _process_video_wrapper, we dispatch to our Celery task.
         if task.__name__ == "_process_video_wrapper":
             from core.execution.worker import process_video_task
+
             result = process_video_task.delay(**kwargs)
             return result.id
         else:

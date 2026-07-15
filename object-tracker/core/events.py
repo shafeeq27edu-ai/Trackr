@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class EventType(str, Enum):
     JOB_CREATED = "JobCreated"
     JOB_STARTED = "JobStarted"
@@ -16,11 +17,13 @@ class EventType(str, Enum):
     PLUGIN_LOADED = "PluginLoaded"
     MODEL_LOADED = "ModelLoaded"
 
+
 class EventBus:
     """
     A simple in-memory event bus for decoupled component communication.
     Supports both synchronous and asynchronous callbacks.
     """
+
     _instance = None
 
     def __new__(cls):
@@ -40,7 +43,7 @@ class EventBus:
         """Publish an event to all subscribers."""
         if event_type not in self._subscribers:
             return
-            
+
         logger.debug(f"Publishing event: {event_type}")
         for callback in self._subscribers[event_type]:
             try:
@@ -52,11 +55,15 @@ class EventBus:
                     except RuntimeError:
                         # If no running loop, run it in a new thread to avoid blocking or crashing
                         import threading
-                        threading.Thread(target=lambda: asyncio.run(callback(payload)), daemon=True).start()
+
+                        threading.Thread(
+                            target=lambda: asyncio.run(callback(payload)), daemon=True
+                        ).start()
                 else:
                     callback(payload)
             except Exception as e:
                 logger.error(f"Error executing callback for {event_type}: {e}")
+
 
 # Global event bus instance
 event_bus = EventBus()

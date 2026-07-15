@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from db.database import Base
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -19,6 +20,7 @@ class User(Base):
     jobs = relationship("Job", back_populates="owner")
     audit_logs = relationship("AuditLog", back_populates="user")
 
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -31,6 +33,7 @@ class Project(Base):
     owner = relationship("User", back_populates="projects")
     jobs = relationship("Job", back_populates="project")
 
+
 class Job(Base):
     __tablename__ = "jobs"
 
@@ -39,24 +42,25 @@ class Job(Base):
     status = Column(String, default="QUEUED")
     progress = Column(Float, default=0.0)
     stage = Column(String, default="Job created")
-    
+
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     project_id = Column(String, ForeignKey("projects.id"), nullable=True)
-    
+
     start_time = Column(DateTime, default=datetime.utcnow)
     completion_time = Column(DateTime, nullable=True)
     duration = Column(Float, nullable=True)
     error = Column(String, nullable=True)
-    
+
     output_path = Column(String, nullable=True)
     # Store JSON analytics as string in SQLite
     analytics = Column(String, nullable=True)
-    
+
     average_fps = Column(Float, nullable=True)
     processing_throughput = Column(Float, nullable=True)
 
     owner = relationship("User", back_populates="jobs")
     project = relationship("Project", back_populates="jobs")
+
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"

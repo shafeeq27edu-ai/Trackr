@@ -2,19 +2,19 @@ import requests
 from typing import List, Dict, Any, Optional
 from trackr_sdk.models import Job, Project, Token
 
+
 class TrackrClient:
     """REST Client for Trackr Platform"""
-    
+
     def __init__(self, base_url: str = "http://localhost:8000", token: str = None):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
         if token:
             self.session.headers.update({"Authorization": f"Bearer {token}"})
 
     def login(self, username: str, password: str) -> Token:
         response = self.session.post(
-            f"{self.base_url}/api/v1/auth/login",
-            data={"username": username, "password": password}
+            f"{self.base_url}/api/v1/auth/login", data={"username": username, "password": password}
         )
         response.raise_for_status()
         token_data = response.json()
@@ -37,7 +37,7 @@ class TrackrClient:
         payload = {"filename": filename}
         if project_id:
             payload["project_id"] = project_id
-            
+
         response = self.session.post(f"{self.base_url}/api/v1/jobs", json=payload)
         response.raise_for_status()
         return Job(**response.json())

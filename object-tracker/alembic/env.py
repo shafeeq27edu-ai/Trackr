@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+
 print("DEBUG: env.py is running")
 
 from sqlalchemy import engine_from_config
@@ -17,9 +18,11 @@ if config.config_file_name is not None:
 
 import sys
 import os
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from db.models import Base
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -41,15 +44,16 @@ def run_migrations_offline() -> None:
 
     """
     from config.settings import get_cached_settings
+
     settings = get_cached_settings()
     url = settings.database_url
     # Ensure it's synchronous driver for alembic (e.g., asyncpg -> psycopg2 or just fall back if supported)
-    # Actually asyncpg is supported if we use run_migrations_online with a specific approach, 
+    # Actually asyncpg is supported if we use run_migrations_online with a specific approach,
     # but the simplest is just let it run. Wait, alembic requires sync driver for simple env.py.
     # Let's replace 'postgresql+asyncpg' with 'postgresql' for the migration URL.
     if url.startswith("postgresql+asyncpg://"):
         url = url.replace("postgresql+asyncpg://", "postgresql://")
-        
+
     config.set_main_option("sqlalchemy.url", url)
     context.configure(
         url=url,
@@ -70,17 +74,18 @@ def run_migrations_online() -> None:
 
     """
     from config.settings import get_cached_settings
+
     settings = get_cached_settings()
     url = settings.database_url
     print(f"DEBUG: settings.database_url = {url}")
     if url.startswith("postgresql+asyncpg://"):
         url = url.replace("postgresql+asyncpg://", "postgresql://")
     print(f"DEBUG: after replace url = {url}")
-        
+
     alembic_config = config.get_section(config.config_ini_section, {})
     alembic_config["sqlalchemy.url"] = url
     print(f"DEBUG: alembic_config['sqlalchemy.url'] = {alembic_config['sqlalchemy.url']}")
-    
+
     connectable = engine_from_config(
         alembic_config,
         prefix="sqlalchemy.",
@@ -88,9 +93,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

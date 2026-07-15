@@ -4,6 +4,7 @@ from typing import BinaryIO, Optional
 from core.storage.base import StorageProvider
 from core.logging import logger
 
+
 class LocalStorageProvider(StorageProvider):
     """Local filesystem storage provider."""
 

@@ -4,6 +4,7 @@ from typing import Dict, List
 import threading
 from core.logging import logger
 
+
 class Profiler:
     def __init__(self):
         self.metrics: Dict[str, List[float]] = {}
@@ -28,14 +29,15 @@ class Profiler:
                 name: sum(times) / len(times) if times else 0.0
                 for name, times in self.metrics.items()
             }
-            
+
     def get_summary_string(self) -> str:
         avgs = self.get_averages()
         return " | ".join(f"{name}: {avg*1000:.1f}ms" for name, avg in avgs.items())
-        
+
     def reset(self):
         with self.lock:
             self.metrics.clear()
+
 
 # Global instance for easy import
 system_profiler = Profiler()

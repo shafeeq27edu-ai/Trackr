@@ -75,7 +75,7 @@ The configured provider can be accessed via `storage_manager.get_provider()`.
 
 ## 5. Distributed Execution
 
-Background job execution is abstracted through the `ExecutionBackend` interface. `LocalExecutionBackend` uses a thread pool for local processing. For enterprise deployments, this interface can be implemented to dispatch tasks to Celery, Ray, or Kubernetes Jobs.
+Background job execution is abstracted through the `ExecutionBackend` interface. `CeleryExecutionBackend` dispatches tasks to a Celery worker pool backed by Redis. The interface can be extended to support Ray, Kubernetes Jobs, or other distributed task runners.
 
 ## 6. Enterprise Configuration
 

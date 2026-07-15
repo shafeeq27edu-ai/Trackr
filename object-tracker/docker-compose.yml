@@ -42,6 +42,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - EXECUTION_BACKEND=celery
+      - PYTHONPATH=/app
     volumes:
       - ./outputs:/app/outputs
       - ./data:/app/data
@@ -63,6 +64,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - EXECUTION_BACKEND=celery
+      - PYTHONPATH=/app
     volumes:
       - ./outputs:/app/outputs
       - ./data:/app/data
