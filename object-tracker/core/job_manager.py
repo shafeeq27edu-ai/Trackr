@@ -100,8 +100,6 @@ class JobManager:
         return job
 
     async def get_job(self, job_id: str) -> Optional[Job]:
-        if job_id in self._jobs:
-            return self._jobs[job_id]
 
         async with SessionLocal() as db:
             result = await db.execute(select(JobDB).filter(JobDB.id == job_id))
@@ -128,7 +126,6 @@ class JobManager:
                     user_id=db_job.user_id,
                     project_id=db_job.project_id,
                 )
-                self._jobs[job.id] = job
                 return job
         return None
 
@@ -223,33 +220,87 @@ class JobManager:
         return job
 
     async def get_all_jobs(self) -> Dict[str, Job]:
-        jobs = self._jobs.copy()
+        jobs = {}
 
         async with SessionLocal() as db:
             result = await db.execute(select(JobDB))
             for db_job in result.scalars().all():
-                if db_job.id not in jobs:
-                    analytics = None
-                    if db_job.analytics:
-                        analytics = json.loads(db_job.analytics)
+                analytics = None
+                if db_job.analytics:
+                    analytics = json.loads(db_job.analytics)
 
-                    jobs[db_job.id] = Job(
-                        id=db_job.id,
-                        filename=db_job.filename,
-                        status=JobStatus(db_job.status),
-                        progress=db_job.progress,
-                        stage=db_job.stage,
-                        start_time=db_job.start_time,
-                        completion_time=db_job.completion_time,
-                        duration=db_job.duration,
-                        error=db_job.error,
-                        output_path=db_job.output_path,
-                        analytics=analytics,
-                        average_fps=db_job.average_fps,
-                        processing_throughput=db_job.processing_throughput,
-                        user_id=db_job.user_id,
-                        project_id=db_job.project_id,
-                    )
+                jobs[db_job.id] = Job(
+                    id=db_job.id,
+                    filename=db_job.filename,
+                    status=JobStatus(db_job.status),
+                    progress=db_job.progress,
+                    stage=db_job.stage,
+                    start_time=db_job.start_time,
+                    completion_time=db_job.completion_time,
+                    duration=db_job.duration,
+                    error=db_job.error,
+                    output_path=db_job.output_path,
+                    analytics=analytics,
+                    average_fps=db_job.average_fps,
+                    processing_throughput=db_job.processing_throughput,
+                    user_id=db_job.user_id,
+                    project_id=db_job.project_id,
+                )
+        return jobs
+
+    async def get_jobs_by_user(self, user_id: str) -> List[Job]:
+        jobs = []
+
+        async with SessionLocal() as db:
+            result = await db.execute(select(JobDB).filter(JobDB.user_id == user_id))
+            for db_job in result.scalars().all():
+                analytics = None
+                if db_job.analytics:
+                    analytics = json.loads(db_job.analytics)
+
+                jobs.append(Job(
+                    id=db_job.id,
+                    filename=db_job.filename,
+                    status=JobStatus(db_job.status),
+                    progress=db_job.progress,
+                    stage=db_job.stage,
+                    start_time=db_job.start_time,
+                    completion_time=db_job.completion_time,
+                    duration=db_job.duration,
+                    error=db_job.error,
+                    output_path=db_job.output_path,
+                    analytics=analytics,
+                    average_fps=db_job.average_fps,
+                    processing_throughput=db_job.processing_throughput,
+                    user_id=db_job.user_id,
+                    project_id=db_job.project_id,
+                ))
+        return jobs
+
+        async with SessionLocal() as db:
+            result = await db.execute(select(JobDB).filter(JobDB.user_id == user_id))
+            for db_job in result.scalars().all():
+                analytics = None
+                if db_job.analytics:
+                    analytics = json.loads(db_job.analytics)
+
+                jobs.append(Job(
+                    id=db_job.id,
+                    filename=db_job.filename,
+                    status=JobStatus(db_job.status),
+                    progress=db_job.progress,
+                    stage=db_job.stage,
+                    start_time=db_job.start_time,
+                    completion_time=db_job.completion_time,
+                    duration=db_job.duration,
+                    error=db_job.error,
+                    output_path=db_job.output_path,
+                    analytics=analytics,
+                    average_fps=db_job.average_fps,
+                    processing_throughput=db_job.processing_throughput,
+                    user_id=db_job.user_id,
+                    project_id=db_job.project_id,
+                ))
         return jobs
 
     async def delete_job(self, job_id: str) -> bool:
