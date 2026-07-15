@@ -11,10 +11,16 @@ class CeleryExecutionBackend(ExecutionBackend):
         self.app = app
 
     def submit_job(self, task: Callable, *args, **kwargs) -> str:
-        logger.info(f"Submitting job via Celery: {task.__name__}")
+        logger.info(f"Submitting job via Celery for task: {task.__name__}")
         
-        result = task.delay(*args, **kwargs)
-        return result.id
+        # If the task is _process_video_wrapper, we dispatch to our Celery task.
+        if task.__name__ == "_process_video_wrapper":
+            from core.execution.worker import process_video_task
+            result = process_video_task.delay(**kwargs)
+            return result.id
+        else:
+            logger.error("Unknown task submitted to Celery Backend")
+            return "unknown-task"
 
     def get_job_status(self, job_id: str) -> Dict[str, Any]:
         result = self.app.AsyncResult(job_id)

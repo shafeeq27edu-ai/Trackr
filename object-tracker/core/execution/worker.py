@@ -9,42 +9,22 @@ redis_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 celery_app = Celery("trackr_worker", broker=redis_url, backend=redis_url)
 
 @celery_app.task(bind=True)
-def process_video_task(self, job_id: str, filename: str):
-    logger.info(f"Starting background job {job_id} for file {filename}")
+def process_video_task(self, job_id: str, input_path: str, output_path: str, yolo_model_path: str):
+    logger.info(f"Starting background job {job_id} for file {input_path}")
     
-    # In a real implementation we would run the detector, tracker, etc. here.
-    # For now, simulate work and update the job status.
-    import time
+    from services.job_service import _process_video_wrapper
     
-    # Update job manager
-    # Since JobManager is async, we need a small event loop block
-    async def update_job():
-        job_manager = JobManager()
-        await job_manager.update_job(
-            job_id,
-            status=JobStatus.PROCESSING,
-            progress=10.0,
-            stage="Running object detection"
+    try:
+        # Actually run the video pipeline
+        _process_video_wrapper(
+            input_path=input_path,
+            output_path=output_path,
+            job_id=job_id,
+            yolo_model_path=yolo_model_path
         )
-        
-        time.sleep(2) # simulate some processing
-        
-        await job_manager.update_job(
-            job_id,
-            progress=50.0,
-            stage="Running analytics"
-        )
-
-        time.sleep(2)
-        
-        await job_manager.update_job(
-            job_id,
-            status=JobStatus.COMPLETED,
-            progress=100.0,
-            stage="Done",
-            output_path=f"outputs/videos/{filename}"
-        )
-        
-    asyncio.run(update_job())
-    logger.info(f"Completed background job {job_id}")
-    return {"status": "SUCCESS", "job_id": job_id}
+        logger.info(f"Completed background job {job_id}")
+        return {"status": "SUCCESS", "job_id": job_id}
+    except Exception as e:
+        logger.error(f"Task failed for job {job_id}: {str(e)}", exc_info=True)
+        # JobStatus is already updated by _process_video_wrapper or video_service
+        return {"status": "FAILED", "job_id": job_id, "error": str(e)}

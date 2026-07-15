@@ -63,13 +63,23 @@ class YoloDetectorPlugin(BaseDetector):
             if device == "cpu" and self.model_name.endswith('.pt'):
                 if not os.path.exists(onnx_path) and os.path.exists(self.model_name):
                     logger.info(f"Exporting {self.model_name} to ONNX for CPU acceleration...")
-                    pt_model.export(format="onnx", imgsz=640, half=False, simplify=True)
+                    try:
+                        pt_model.export(format="onnx", imgsz=640, half=False, simplify=True)
+                    except Exception as export_err:
+                        logger.warning(f"Failed to export ONNX: {export_err}. Falling back to PyTorch.")
                 
                 if os.path.exists(onnx_path):
-                    logger.info(f"Loading accelerated ONNX model: {onnx_path}")
-                    self.model_name = onnx_path
-                    
-            self.model = YOLO(self.model_name, task='detect')
+                    logger.info(f"Attempting to load ONNX model: {onnx_path}")
+                    try:
+                        self.model = YOLO(onnx_path, task='detect')
+                        self.model_name = onnx_path
+                    except Exception as onnx_load_err:
+                        logger.warning(f"Failed to load ONNX model (perhaps missing onnxruntime?): {onnx_load_err}. Falling back to PyTorch model.")
+                        self.model = pt_model
+                else:
+                    self.model = pt_model
+            else:
+                self.model = YOLO(self.model_name, task='detect')
                 
             if device and not self.model_name.endswith('.onnx'):
                 self.model.to(device)

@@ -16,14 +16,15 @@ router = APIRouter()
 
 @router.post("/register", response_model=UserResponse)
 async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == user_in.email))
+    email_normalized = user_in.email.strip().lower()
+    result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
         
     user = User(
         id=str(uuid.uuid4()),
-        email=user_in.email,
+        email=user_in.email.strip().lower(),
         hashed_password=get_password_hash(user_in.password),
         name=user_in.name
     )
@@ -36,7 +37,8 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == form_data.username))
+    email_normalized = form_data.username.strip().lower()
+    result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         if user:

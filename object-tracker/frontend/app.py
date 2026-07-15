@@ -412,6 +412,8 @@ with tab_live:
             if res.status_code == 200:
                 st.success("Stream added!")
                 st.rerun()
+            else:
+                st.error(f"Failed to add stream: {res.status_code} - {res.text}")
                 
     st.divider()
     streams_res = requests.get(f"{API_BASE_URL}/streams", headers=get_auth_headers())

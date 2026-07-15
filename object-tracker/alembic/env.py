@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+print("DEBUG: env.py is running")
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -39,7 +40,17 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    from config.settings import get_cached_settings
+    settings = get_cached_settings()
+    url = settings.database_url
+    # Ensure it's synchronous driver for alembic (e.g., asyncpg -> psycopg2 or just fall back if supported)
+    # Actually asyncpg is supported if we use run_migrations_online with a specific approach, 
+    # but the simplest is just let it run. Wait, alembic requires sync driver for simple env.py.
+    # Let's replace 'postgresql+asyncpg' with 'postgresql' for the migration URL.
+    if url.startswith("postgresql+asyncpg://"):
+        url = url.replace("postgresql+asyncpg://", "postgresql://")
+        
+    config.set_main_option("sqlalchemy.url", url)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -58,8 +69,20 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    from config.settings import get_cached_settings
+    settings = get_cached_settings()
+    url = settings.database_url
+    print(f"DEBUG: settings.database_url = {url}")
+    if url.startswith("postgresql+asyncpg://"):
+        url = url.replace("postgresql+asyncpg://", "postgresql://")
+    print(f"DEBUG: after replace url = {url}")
+        
+    alembic_config = config.get_section(config.config_ini_section, {})
+    alembic_config["sqlalchemy.url"] = url
+    print(f"DEBUG: alembic_config['sqlalchemy.url'] = {alembic_config['sqlalchemy.url']}")
+    
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        alembic_config,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

@@ -13,28 +13,39 @@ from core.execution.base import ExecutionBackend
 
 def _process_video_wrapper(input_path: str, output_path: str, job_id: str, yolo_model_path: str):
     """Picklable wrapper for running video processing in a separate process."""
-    from core.job_manager import JobManager
+    import asyncio
+    from core.job_manager import JobManager, JobStatus
     from tracker.detector import plugin_manager
     from config.settings import get_cached_settings
+    from core.logging import logger
     
     settings = get_cached_settings()
     job_manager = JobManager()
     
-    # We load the generic YOLO model or use the plugin
-    # Here we assume the default model is loaded
-    from core.dependencies import get_model_manager
-    model_manager = get_model_manager()
-    detector = model_manager.get_yolo_model(yolo_model_path)
-    
-    from services.video_service import process_video_file
-    return process_video_file(
-        input_path=input_path,
-        output_path=output_path,
-        detector=detector,
-        settings=settings,
-        job_id=job_id,
-        job_manager=job_manager
-    )
+    try:
+        # We load the generic YOLO model or use the plugin
+        # Here we assume the default model is loaded
+        from core.dependencies import get_model_manager
+        model_manager = get_model_manager()
+        detector = model_manager.get_yolo_model(yolo_model_path)
+        
+        from services.video_service import process_video_file
+        return process_video_file(
+            input_path=input_path,
+            output_path=output_path,
+            detector=detector,
+            settings=settings,
+            job_id=job_id,
+            job_manager=job_manager
+        )
+    except Exception as e:
+        logger.error(f"Wrapper failed before pipeline start: {str(e)}", exc_info=True)
+        # Attempt to synchronously update job status so it doesn't get stuck
+        try:
+            asyncio.run(job_manager.update_job(job_id, status=JobStatus.FAILED, error=f"Init error: {str(e)}"))
+        except Exception as inner_e:
+            logger.error(f"Failed to update job status in wrapper: {inner_e}")
+        raise
 
 class JobService:
     def __init__(self, job_manager: JobManager, settings: Settings, detector: YoloDetector, execution_backend: ExecutionBackend):
