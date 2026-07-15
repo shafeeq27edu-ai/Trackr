@@ -57,6 +57,10 @@ def get_job_service() -> "JobService":
             from core.execution.celery_backend import CeleryExecutionBackend
 
             _execution_backend = CeleryExecutionBackend(celery_app)
+        elif settings.execution_backend == "local":
+            from core.execution.local_backend import LocalExecutionBackend
+
+            _execution_backend = LocalExecutionBackend()
         else:
             raise ValueError(f"Unsupported execution_backend: {settings.execution_backend}")
 

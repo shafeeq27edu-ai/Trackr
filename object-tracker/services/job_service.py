@@ -85,7 +85,7 @@ class JobService:
         job = await self.job_manager.create_job(
             filename=file.filename, user_id=user_id, project_id=project_id
         )
-        await self.job_manager.update_job(
+        job = await self.job_manager.update_job(
             job.id, status=JobStatus.INITIALIZING, stage="Saving file"
         )
 
@@ -111,6 +111,7 @@ class JobService:
             output_path=output_path,
             job_id=job.id,
             yolo_model_path=self.settings.yolo_model_path,
+            background_tasks=background_tasks,
         )
 
         return job

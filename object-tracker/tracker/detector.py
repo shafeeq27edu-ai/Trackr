@@ -64,7 +64,8 @@ class YoloDetectorPlugin(BaseDetector):
             pt_model = YOLO(
                 self.model_name.replace(".onnx", ".pt")
                 if self.model_name.endswith(".onnx")
-                else self.model_name
+                else self.model_name,
+                task="detect",
             )
             # Store names dictionary directly on the detector
             self.names = getattr(pt_model, "names", {})
