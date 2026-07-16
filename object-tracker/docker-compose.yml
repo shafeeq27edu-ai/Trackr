@@ -46,6 +46,13 @@ services:
     volumes:
       - ./outputs:/app/outputs
       - ./data:/app/data
+    # ── Webcam access (Linux only) ──────────────────────────────
+    # Uncomment the lines below on a NATIVE LINUX host to pass the
+    # webcam device into this container for live streaming.
+    # On Windows / macOS with Docker Desktop this does NOT work —
+    # use  .\run_dev.ps1  instead (hybrid mode: native backend).
+    # devices:
+    #   - /dev/video0:/dev/video0
     depends_on:
       db:
         condition: service_healthy
