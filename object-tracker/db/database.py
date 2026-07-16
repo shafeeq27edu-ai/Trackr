@@ -6,8 +6,10 @@ from config.settings import get_cached_settings
 settings = get_cached_settings()
 SQLALCHEMY_DATABASE_URL = settings.database_url
 
+from sqlalchemy.pool import NullPool
+
 # Async Engine for PostgreSQL
-engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=False, pool_size=20, max_overflow=10)
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=False, poolclass=NullPool)
 
 # Async session factory
 SessionLocal = async_sessionmaker(

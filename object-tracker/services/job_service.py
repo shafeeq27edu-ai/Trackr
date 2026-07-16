@@ -111,7 +111,6 @@ class JobService:
             output_path=output_path,
             job_id=job.id,
             yolo_model_path=self.settings.yolo_model_path,
-            background_tasks=background_tasks,
         )
 
         return job

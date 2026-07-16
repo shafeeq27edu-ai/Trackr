@@ -80,6 +80,7 @@ import os
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
 SYS_API_BASE_URL = os.getenv("SYS_API_BASE_URL", "http://localhost:8000/api/v1/system")
+PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "http://localhost:8000/api/v1")
 
 # --- Session State Management ---
 if "token" not in st.session_state:
@@ -364,30 +365,39 @@ with tab_batch:
                         if j["status"] == "COMPLETED":
                             # Load job details side-by-side: Video & Heatmap
                             v_col1, v_col2 = st.columns(2)
-                            token_param = f"?token={st.session_state.token}"
-                            video_res_url = f"{API_BASE_URL}/jobs/{j['id']}/result{token_param}"
-                            heatmap_url = f"{API_BASE_URL}/jobs/{j['id']}/heatmap{token_param}"
+                            # Fetch artifacts server-side to avoid client URL resolution issues
+                            video_resp = requests.get(f"{API_BASE_URL}/jobs/{j['id']}/result", headers=get_auth_headers())
+                            heatmap_resp = requests.get(f"{API_BASE_URL}/jobs/{j['id']}/heatmap", headers=get_auth_headers())
+                            report_resp = requests.get(f"{API_BASE_URL}/jobs/{j['id']}/report", headers=get_auth_headers())
 
                             with v_col1:
                                 st.write("### 🎥 Processed Output")
-                                st.video(video_res_url)
+                                if video_resp.status_code == 200:
+                                    st.video(video_resp.content)
+                                else:
+                                    st.error("Processed video not found or failed to load.")
                             with v_col2:
                                 st.write("### 🔥 Activity Heatmap")
-                                st.image(heatmap_url, use_container_width=True)
+                                if heatmap_resp.status_code == 200:
+                                    st.image(heatmap_resp.content, use_container_width=True)
+                                else:
+                                    st.error("Heatmap not found or failed to load.")
 
                             # Download grid
                             d_col1, d_col2, d_col3 = st.columns(3)
-                            d_col1.link_button(
-                                "📥 Download Video", video_res_url, use_container_width=True
-                            )
-                            d_col2.link_button(
-                                "📥 Download Heatmap", heatmap_url, use_container_width=True
-                            )
-                            d_col3.link_button(
-                                "📥 Download CSV Report",
-                                f"{API_BASE_URL}/jobs/{j['id']}/report{token_param}",
-                                use_container_width=True,
-                            )
+                            
+                            if video_resp.status_code == 200:
+                                d_col1.download_button(
+                                    "📥 Download Video", video_resp.content, file_name=f"video_{j['id']}.mp4", mime="video/mp4", use_container_width=True
+                                )
+                            if heatmap_resp.status_code == 200:
+                                d_col2.download_button(
+                                    "📥 Download Heatmap", heatmap_resp.content, file_name=f"heatmap_{j['id']}.png", mime="image/png", use_container_width=True
+                                )
+                            if report_resp.status_code == 200:
+                                d_col3.download_button(
+                                    "📥 Download CSV Report", report_resp.content, file_name=f"logs_{j['id']}.csv", mime="text/csv", use_container_width=True
+                                )
 
                             # Render Analytics Dashboard
                             analytics = j.get("analytics")

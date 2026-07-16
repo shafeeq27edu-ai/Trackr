@@ -11,6 +11,7 @@ celery_app = Celery("trackr_worker", broker=redis_url, backend=redis_url)
 
 @celery_app.task(bind=True)
 def process_video_task(self, job_id: str, input_path: str, output_path: str, yolo_model_path: str):
+    logger.info(f"TASK RECEIVED/STARTED IN WORKER: job_id={job_id}")
     logger.info(f"Starting background job {job_id} for file {input_path}")
 
     from services.job_service import _process_video_wrapper

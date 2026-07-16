@@ -18,6 +18,7 @@ class CeleryExecutionBackend(ExecutionBackend):
         if task.__name__ == "_process_video_wrapper":
             from core.execution.worker import process_video_task
 
+            logger.info(f"DISPATCHING TASK TO CELERY: job_id={kwargs.get('job_id')} input={kwargs.get('input_path')}")
             result = process_video_task.delay(**kwargs)
             return result.id
         else:
