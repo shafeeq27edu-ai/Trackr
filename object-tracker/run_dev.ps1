@@ -91,12 +91,12 @@ Push-Location $ProjectRoot
 try {
     python -m alembic upgrade head 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "       (Alembic migration skipped or not configured — continuing)" -ForegroundColor DarkYellow
+        Write-Host "       (Alembic migration skipped or not configured - continuing)" -ForegroundColor DarkYellow
     } else {
         Write-Host "       Migrations applied." -ForegroundColor Green
     }
 } catch {
-    Write-Host "       (Alembic not available — continuing)" -ForegroundColor DarkYellow
+    Write-Host "       (Alembic not available - continuing)" -ForegroundColor DarkYellow
 }
 Pop-Location
 

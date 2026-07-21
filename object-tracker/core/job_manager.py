@@ -258,23 +258,25 @@ class JobManager:
                 if db_job.analytics:
                     analytics = json.loads(db_job.analytics)
 
-                jobs.append(Job(
-                    id=db_job.id,
-                    filename=db_job.filename,
-                    status=JobStatus(db_job.status),
-                    progress=db_job.progress,
-                    stage=db_job.stage,
-                    start_time=db_job.start_time,
-                    completion_time=db_job.completion_time,
-                    duration=db_job.duration,
-                    error=db_job.error,
-                    output_path=db_job.output_path,
-                    analytics=analytics,
-                    average_fps=db_job.average_fps,
-                    processing_throughput=db_job.processing_throughput,
-                    user_id=db_job.user_id,
-                    project_id=db_job.project_id,
-                ))
+                jobs.append(
+                    Job(
+                        id=db_job.id,
+                        filename=db_job.filename,
+                        status=JobStatus(db_job.status),
+                        progress=db_job.progress,
+                        stage=db_job.stage,
+                        start_time=db_job.start_time,
+                        completion_time=db_job.completion_time,
+                        duration=db_job.duration,
+                        error=db_job.error,
+                        output_path=db_job.output_path,
+                        analytics=analytics,
+                        average_fps=db_job.average_fps,
+                        processing_throughput=db_job.processing_throughput,
+                        user_id=db_job.user_id,
+                        project_id=db_job.project_id,
+                    )
+                )
         return jobs
 
         async with SessionLocal() as db:
@@ -284,23 +286,25 @@ class JobManager:
                 if db_job.analytics:
                     analytics = json.loads(db_job.analytics)
 
-                jobs.append(Job(
-                    id=db_job.id,
-                    filename=db_job.filename,
-                    status=JobStatus(db_job.status),
-                    progress=db_job.progress,
-                    stage=db_job.stage,
-                    start_time=db_job.start_time,
-                    completion_time=db_job.completion_time,
-                    duration=db_job.duration,
-                    error=db_job.error,
-                    output_path=db_job.output_path,
-                    analytics=analytics,
-                    average_fps=db_job.average_fps,
-                    processing_throughput=db_job.processing_throughput,
-                    user_id=db_job.user_id,
-                    project_id=db_job.project_id,
-                ))
+                jobs.append(
+                    Job(
+                        id=db_job.id,
+                        filename=db_job.filename,
+                        status=JobStatus(db_job.status),
+                        progress=db_job.progress,
+                        stage=db_job.stage,
+                        start_time=db_job.start_time,
+                        completion_time=db_job.completion_time,
+                        duration=db_job.duration,
+                        error=db_job.error,
+                        output_path=db_job.output_path,
+                        analytics=analytics,
+                        average_fps=db_job.average_fps,
+                        processing_throughput=db_job.processing_throughput,
+                        user_id=db_job.user_id,
+                        project_id=db_job.project_id,
+                    )
+                )
         return jobs
 
     async def delete_job(self, job_id: str) -> bool:

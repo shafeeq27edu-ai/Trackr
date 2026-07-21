@@ -13,6 +13,8 @@ from core.profiler import system_profiler
 
 import threading
 import os
+
+
 class StreamReader:
     """Background thread to continuously grab the latest frame, skipping backlog."""
 
@@ -31,7 +33,7 @@ class StreamReader:
 
     def start(self):
         logger.info(f"StreamReader: Attempting to open video source {self.source_id}")
-        if self.is_live and os.name == 'nt':
+        if self.is_live and os.name == "nt":
             self.cap = cv2.VideoCapture(self.source_id, cv2.CAP_DSHOW)
         else:
             self.cap = cv2.VideoCapture(self.source_id)

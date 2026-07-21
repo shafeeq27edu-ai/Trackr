@@ -62,9 +62,11 @@ class YoloDetectorPlugin(BaseDetector):
         try:
             # Always load the PyTorch model first to extract metadata
             pt_model = YOLO(
-                self.model_name.replace(".onnx", ".pt")
-                if self.model_name.endswith(".onnx")
-                else self.model_name,
+                (
+                    self.model_name.replace(".onnx", ".pt")
+                    if self.model_name.endswith(".onnx")
+                    else self.model_name
+                ),
                 task="detect",
             )
             # Store names dictionary directly on the detector

@@ -45,7 +45,7 @@ async def test_process_live_stream():
         async def stop_soon():
             await asyncio.sleep(0.05)
             stream.stop_event.set()
-        
+
         asyncio.create_task(stop_soon())
 
         # Run process loop in task or await directly since it halts when stop_event is set

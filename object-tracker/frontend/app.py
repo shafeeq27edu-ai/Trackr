@@ -366,9 +366,15 @@ with tab_batch:
                             # Load job details side-by-side: Video & Heatmap
                             v_col1, v_col2 = st.columns(2)
                             # Fetch artifacts server-side to avoid client URL resolution issues
-                            video_resp = requests.get(f"{API_BASE_URL}/jobs/{j['id']}/result", headers=get_auth_headers())
-                            heatmap_resp = requests.get(f"{API_BASE_URL}/jobs/{j['id']}/heatmap", headers=get_auth_headers())
-                            report_resp = requests.get(f"{API_BASE_URL}/jobs/{j['id']}/report", headers=get_auth_headers())
+                            video_resp = requests.get(
+                                f"{API_BASE_URL}/jobs/{j['id']}/result", headers=get_auth_headers()
+                            )
+                            heatmap_resp = requests.get(
+                                f"{API_BASE_URL}/jobs/{j['id']}/heatmap", headers=get_auth_headers()
+                            )
+                            report_resp = requests.get(
+                                f"{API_BASE_URL}/jobs/{j['id']}/report", headers=get_auth_headers()
+                            )
 
                             with v_col1:
                                 st.write("### 🎥 Processed Output")
@@ -385,18 +391,30 @@ with tab_batch:
 
                             # Download grid
                             d_col1, d_col2, d_col3 = st.columns(3)
-                            
+
                             if video_resp.status_code == 200:
                                 d_col1.download_button(
-                                    "📥 Download Video", video_resp.content, file_name=f"video_{j['id']}.mp4", mime="video/mp4", use_container_width=True
+                                    "📥 Download Video",
+                                    video_resp.content,
+                                    file_name=f"video_{j['id']}.mp4",
+                                    mime="video/mp4",
+                                    use_container_width=True,
                                 )
                             if heatmap_resp.status_code == 200:
                                 d_col2.download_button(
-                                    "📥 Download Heatmap", heatmap_resp.content, file_name=f"heatmap_{j['id']}.png", mime="image/png", use_container_width=True
+                                    "📥 Download Heatmap",
+                                    heatmap_resp.content,
+                                    file_name=f"heatmap_{j['id']}.png",
+                                    mime="image/png",
+                                    use_container_width=True,
                                 )
                             if report_resp.status_code == 200:
                                 d_col3.download_button(
-                                    "📥 Download CSV Report", report_resp.content, file_name=f"logs_{j['id']}.csv", mime="text/csv", use_container_width=True
+                                    "📥 Download CSV Report",
+                                    report_resp.content,
+                                    file_name=f"logs_{j['id']}.csv",
+                                    mime="text/csv",
+                                    use_container_width=True,
                                 )
 
                             # Render Analytics Dashboard

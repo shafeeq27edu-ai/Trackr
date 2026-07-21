@@ -80,6 +80,9 @@ print(f"Tracking job started: {job.id}")
 ## 🛠 Contributing
 We love our contributors! Please see our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
 
+> [!NOTE]
+> Run `pre-commit install` once after cloning the repository to enable automatic Black formatting checks on git commit.
+
 If you find a security issue, please review our [Security Policy](SECURITY.md).
 
 ## 📄 License

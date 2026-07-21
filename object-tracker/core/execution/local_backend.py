@@ -24,12 +24,15 @@ class LocalExecutionBackend(ExecutionBackend):
             background_tasks.add_task(task, *args, **kwargs)
             self._statuses[job_id] = "SUCCESS"
         else:
+
             def run_thread():
                 try:
                     task(*args, **kwargs)
                     self._statuses[job_id] = "SUCCESS"
                 except Exception as e:
-                    logger.error(f"Local task execution failed for job {job_id}: {e}", exc_info=True)
+                    logger.error(
+                        f"Local task execution failed for job {job_id}: {e}", exc_info=True
+                    )
                     self._statuses[job_id] = "FAILURE"
 
             thread = threading.Thread(target=run_thread, daemon=True)
