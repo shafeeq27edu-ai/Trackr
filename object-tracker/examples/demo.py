@@ -1,9 +1,11 @@
 import os
+
 import cv2
 import supervision as sv
+
+from tracker.analytics import AnalyticsEngine
 from tracker.detector import YoloDetector
 from tracker.tracker import ByteTrackerWrapper
-from tracker.analytics import AnalyticsEngine
 
 
 def main():

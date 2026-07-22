@@ -1,9 +1,7 @@
-import threading
-import torch
-from typing import Dict, Any, Optional
-from core.logging import logger
-from tracker.detector import YoloDetector
+from typing import Dict
+
 from core.models.registry import model_registry
+from tracker.detector import YoloDetector
 
 
 class ModelManager:

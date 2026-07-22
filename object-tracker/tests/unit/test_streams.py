@@ -1,8 +1,10 @@
-import pytest
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import numpy as np
-from unittest.mock import MagicMock, AsyncMock, patch
+import pytest
 import supervision as sv
+
 from core.stream_manager import StreamManager, StreamStatus
 from services.stream_service import process_live_stream
 

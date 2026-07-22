@@ -1,13 +1,14 @@
+import uuid
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
-import uuid
 
+from api.deps import get_current_user
 from db.database import get_db
 from db.models import Project, User
 from db.schemas import ProjectCreate, ProjectResponse
-from api.deps import get_current_user
 from services.audit_service import log_audit_event
 
 router = APIRouter()

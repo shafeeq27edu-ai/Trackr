@@ -1,9 +1,9 @@
-import bcrypt
+import os
 from datetime import datetime, timedelta
 from typing import Optional
-import jwt
 
-import os
+import bcrypt
+import jwt
 
 # Using a dummy secret key for development. In production this should be in .env
 # For Trackr, we will default it if not provided in settings.

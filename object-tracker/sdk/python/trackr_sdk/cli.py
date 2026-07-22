@@ -1,7 +1,9 @@
-import typer
 from typing import Optional
+
+import typer
 from rich.console import Console
 from rich.table import Table
+
 from trackr_sdk.client import TrackrClient
 
 app = typer.Typer(help="Trackr CLI - Manage your computer vision tracking platform")
@@ -61,7 +63,7 @@ def analyze(video_path: str, project_id: Optional[str] = typer.Option(None, help
     """Submit a video for full analytics processing."""
     try:
         job = client.submit_job(filename=video_path, project_id=project_id)
-        console.print(f"[green]Job submitted successfully![/green]")
+        console.print("[green]Job submitted successfully![/green]")
         console.print(f"Job ID: {job.id}")
         console.print(f"Status: {job.status.value}")
     except Exception as e:

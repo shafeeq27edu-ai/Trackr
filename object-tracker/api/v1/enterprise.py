@@ -1,9 +1,10 @@
+
 from fastapi import APIRouter, Depends
-from typing import List, Dict, Any
-from core.events import event_bus, EventType
-from core.storage.manager import storage_manager
-from config.settings import settings
+
 from api.deps import get_current_user
+from config.settings import settings
+from core.events import EventType, event_bus
+from core.storage.manager import storage_manager
 from db.models import User
 
 router = APIRouter()

@@ -1,5 +1,6 @@
-import supervision as sv
 from abc import abstractmethod
+
+import supervision as sv
 
 from core.plugin_manager import BasePlugin
 

@@ -1,20 +1,22 @@
 import os
 import shutil
-from fastapi import UploadFile, BackgroundTasks
-from core.job_manager import JobManager, JobStatus, Job
+from typing import Any, Optional
+
+from fastapi import BackgroundTasks, UploadFile
+
 from config.settings import Settings
 from core.exceptions import UnsupportedFormatError
-from core.logging import logger
-from typing import Optional, Any
-
 from core.execution.base import ExecutionBackend
+from core.job_manager import Job, JobManager, JobStatus
+from core.logging import logger
 
 
 def _process_video_wrapper(input_path: str, output_path: str, job_id: str, yolo_model_path: str):
     """Picklable wrapper for running video processing in a separate process."""
     import asyncio
-    from core.job_manager import JobManager, JobStatus
+
     from config.settings import get_cached_settings
+    from core.job_manager import JobManager, JobStatus
     from core.logging import logger
 
     settings = get_cached_settings()

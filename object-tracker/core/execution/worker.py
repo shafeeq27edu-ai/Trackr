@@ -1,7 +1,7 @@
 import os
+
 from celery import Celery
-import asyncio
-from core.job_manager import JobManager, JobStatus
+
 from core.logging import logger
 
 redis_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")

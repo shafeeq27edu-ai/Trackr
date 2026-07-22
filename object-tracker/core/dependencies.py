@@ -1,8 +1,8 @@
 from config.settings import Settings, get_cached_settings
-from tracker.detector import YoloDetector
 from core.job_manager import JobManager
 from core.model_manager import ModelManager
 from core.stream_manager import StreamManager
+from tracker.detector import YoloDetector
 
 # Global singleton instances for dependencies
 _job_manager = JobManager()
@@ -39,8 +39,8 @@ def get_stream_manager() -> StreamManager:
 _job_service_instance = None
 
 
-def get_job_service() -> "JobService":
-    """Dependency to inject the JobService."""
+def get_job_service() -> "JobService":  # type: ignore  # noqa: F821
+
     global _job_service_instance
     if _job_service_instance is not None:
         return _job_service_instance
@@ -53,8 +53,8 @@ def get_job_service() -> "JobService":
     global _execution_backend
     if "_execution_backend" not in globals():
         if settings.execution_backend == "celery":
-            from core.execution.worker import celery_app
             from core.execution.celery_backend import CeleryExecutionBackend
+            from core.execution.worker import celery_app
 
             _execution_backend = CeleryExecutionBackend(celery_app)
         elif settings.execution_backend == "local":

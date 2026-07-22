@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from sqlalchemy import text
-from db.database import get_db
+from sqlalchemy.orm import Session
+
 from core.dependencies import get_detector
-from tracker.detector import YoloDetector
 from core.logging import logger
+from db.database import get_db
+from tracker.detector import YoloDetector
 
 router = APIRouter()
 

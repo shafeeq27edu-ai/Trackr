@@ -1,13 +1,13 @@
+import json
 import os
 import time
+
 import psutil
-import torch
-import cv2
 import supervision as sv
-import json
+
+from config.settings import settings
 from tracker.detector import YoloDetector
 from tracker.tracker import ByteTrackerWrapper
-from config.settings import settings
 
 
 def print_memory_usage():

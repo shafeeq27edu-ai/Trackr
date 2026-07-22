@@ -1,8 +1,7 @@
+import threading
 import time
 from contextlib import contextmanager
 from typing import Dict, List
-import threading
-from core.logging import logger
 
 
 class Profiler:

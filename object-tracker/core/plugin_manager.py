@@ -1,11 +1,11 @@
 import importlib
-import pkgutil
 import inspect
-from typing import Dict, Type, List, Any
 import logging
+import pkgutil
 from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Type
 
-from core.events import event_bus, EventType
+from core.events import EventType, event_bus
 
 logger = logging.getLogger(__name__)
 

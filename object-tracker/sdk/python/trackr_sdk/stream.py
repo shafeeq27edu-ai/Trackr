@@ -1,7 +1,7 @@
-import asyncio
-import websockets
 import json
-from typing import Callable, Any
+from typing import Any, Callable
+
+import websockets
 
 
 class TrackrStreamClient:

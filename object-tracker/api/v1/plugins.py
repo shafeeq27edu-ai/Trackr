@@ -1,8 +1,9 @@
+
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Dict, Any
 from pydantic import BaseModel
-from core.plugin_manager import plugin_manager
+
 from api.deps import get_current_user
+from core.plugin_manager import plugin_manager
 from db.models import User
 
 router = APIRouter()

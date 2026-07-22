@@ -1,12 +1,12 @@
-import os
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
+
 from config.settings import get_cached_settings
 
 settings = get_cached_settings()
 SQLALCHEMY_DATABASE_URL = settings.database_url
 
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool  # noqa: E402
 
 # Async Engine for PostgreSQL
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=False, poolclass=NullPool)

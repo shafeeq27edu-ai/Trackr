@@ -1,14 +1,11 @@
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from config.settings import settings
 
-from core.logging import logger
-from core.exceptions import TrackrException
-from core.job_manager import JobManager
-from api.v1 import jobs, system, streams, auth, projects, health, models, plugins, enterprise
+from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from core.model_manager import ModelManager
+from api.v1 import auth, enterprise, health, jobs, models, plugins, projects, streams, system
+from core.exceptions import TrackrException
+from core.logging import logger
 
 
 @asynccontextmanager
@@ -21,8 +18,8 @@ async def lifespan(app: FastAPI):
 
     try:
         # Discover plugins and models
-        from core.plugin_manager import plugin_manager
         from core.models.registry import model_registry
+        from core.plugin_manager import plugin_manager
 
         plugin_manager.discover_plugins()
         model_registry.discover_from_plugins()
@@ -35,7 +32,8 @@ async def lifespan(app: FastAPI):
         model_manager.get_yolo_model(get_settings().yolo_model_path)
 
         logger.info(
-            "ModelManager, JobManager, and StreamManager loaded successfully. Ready to serve requests."
+            "ModelManager, JobManager, and StreamManager loaded successfully. Ready to serve requests."  # noqa: E501
+
         )
     except Exception as e:
         logger.critical(f"Failed to initialize model during startup: {str(e)}", exc_info=True)
@@ -54,7 +52,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 app.add_middleware(
     CORSMiddleware,
@@ -64,15 +62,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from core.exceptions import (
-    TrackrException,
-    trackr_exception_handler,
+from fastapi import HTTPException  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+
+from core.exceptions import (  # noqa: E402
     global_exception_handler,
     http_exception_handler,
     request_validation_exception_handler,
+    trackr_exception_handler,
 )
-from fastapi import HTTPException
-from fastapi.exceptions import RequestValidationError
 
 # Register Custom Exception Handlers
 app.add_exception_handler(TrackrException, trackr_exception_handler)

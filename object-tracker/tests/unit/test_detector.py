@@ -1,8 +1,10 @@
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from tracker.detector import YoloDetector
+import pytest
+
 from core.exceptions import ModelLoadingError
-from unittest.mock import patch, MagicMock
+from tracker.detector import YoloDetector
 
 
 @pytest.fixture

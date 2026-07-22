@@ -1,6 +1,6 @@
-import pytest
 import numpy as np
 import supervision as sv
+
 from tracker.tracker import ByteTrackerWrapper
 
 

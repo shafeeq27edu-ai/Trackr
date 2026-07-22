@@ -1,6 +1,7 @@
-from typing import Dict, Any, List
-import supervision as sv
 from abc import abstractmethod
+from typing import Any, Dict
+
+import supervision as sv
 
 from core.plugin_manager import BasePlugin
 
@@ -23,5 +24,8 @@ class BaseAnalytics(BasePlugin):
         pass
 
     def reset(self) -> None:
-        """Reset the analytics state (useful for multi-video processing without re-instantiation)."""
+        """
+        Reset the analytics state
+        (useful for multi-video processing without re-instantiation).
+        """
         pass

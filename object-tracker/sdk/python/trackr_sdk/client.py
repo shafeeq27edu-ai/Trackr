@@ -1,6 +1,8 @@
+from typing import Any, Dict, List, Optional
+
 import requests
-from typing import List, Dict, Any, Optional
-from trackr_sdk.models import Job, Project, Token
+
+from trackr_sdk.models import Job, Token
 
 
 class TrackrClient:

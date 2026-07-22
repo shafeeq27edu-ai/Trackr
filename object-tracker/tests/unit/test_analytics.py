@@ -1,9 +1,11 @@
-import pytest
-import numpy as np
-import supervision as sv
-from tracker.analytics import AnalyticsEngine
 import os
 import shutil
+
+import numpy as np
+import pytest
+import supervision as sv
+
+from tracker.analytics import AnalyticsEngine
 
 
 @pytest.fixture

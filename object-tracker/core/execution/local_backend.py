@@ -1,5 +1,6 @@
 import threading
-from typing import Callable, Any, Dict
+from typing import Any, Callable, Dict
+
 from core.execution.base import ExecutionBackend
 from core.logging import logger
 

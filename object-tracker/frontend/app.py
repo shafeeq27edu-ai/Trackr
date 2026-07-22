@@ -1,8 +1,9 @@
-import streamlit as st
-import requests
+# ruff: noqa: E501
 import time
+
 import pandas as pd
-import json
+import requests
+import streamlit as st
 
 st.set_page_config(page_title="Trackr Advanced Analytics", page_icon="🎥", layout="wide")
 
@@ -10,7 +11,7 @@ st.set_page_config(page_title="Trackr Advanced Analytics", page_icon="🎥", lay
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');  # noqa: E501
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
     background-color: #0B0E14;
@@ -76,7 +77,7 @@ div[data-testid="stExpander"]:hover {
     unsafe_allow_html=True,
 )
 
-import os
+import os  # noqa: E402
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
 SYS_API_BASE_URL = os.getenv("SYS_API_BASE_URL", "http://localhost:8000/api/v1/system")
@@ -312,7 +313,7 @@ with tab_batch:
                 st.markdown(
                     f"**Status:** `{status}` | **Stage:** {stage} | "
                     f"**Progress:** {progress:.1f}% | **Speed:** {current_fps_val:.1f} FPS | "
-                    f"**Elapsed:** {time.strftime('%M:%S', time.gmtime(elapsed))} | **ETA:** {eta_str}"
+                    f"**Elapsed:** {time.strftime('%M:%S', time.gmtime(elapsed))} | **ETA:** {eta_str}"  # noqa: E501
                 )
 
                 if status == "COMPLETED":
@@ -478,7 +479,7 @@ with tab_batch:
                                         col_data.extend(
                                             [
                                                 {
-                                                    "Metric": f"Dwell Time - {k.replace('_', ' ').title()}",
+                                                    "Metric": f"Dwell Time - {k.replace('_', ' ').title()}",  # noqa: E501
                                                     "Value": f"{v}s",
                                                 }
                                                 for k, v in dwell_times_sec.items()
@@ -488,13 +489,13 @@ with tab_batch:
                                         col_data.append(
                                             {
                                                 "Metric": "Global Average Speed",
-                                                "Value": f"{speed_stats.get('average_speed_kmh', 0.0)} km/h",
+                                                "Value": f"{speed_stats.get('average_speed_kmh', 0.0)} km/h",  # noqa: E501
                                             }
                                         )
                                         col_data.append(
                                             {
                                                 "Metric": "Global Maximum Speed",
-                                                "Value": f"{speed_stats.get('maximum_speed_kmh', 0.0)} km/h",
+                                                "Value": f"{speed_stats.get('maximum_speed_kmh', 0.0)} km/h",  # noqa: E501
                                             }
                                         )
                                     if col_data:
@@ -593,7 +594,7 @@ with tab_live:
                 if s["status"] == "PLAYING":
                     # Display stream stats
                     st.caption(
-                        f"FPS: {s.get('fps', 0)} | Frames Processed: {s.get('frames_processed', 0)} | Detections: {s.get('total_detections', 0)}"
+                        f"FPS: {s.get('fps', 0)} | Frames Processed: {s.get('frames_processed', 0)} | Detections: {s.get('total_detections', 0)}"  # noqa: E501
                     )
 
                 if s["status"] == "PLAYING":
@@ -605,33 +606,33 @@ with tab_live:
                         html_code = f"""
                         <!DOCTYPE html>
                         <html>
-                        <body style="margin:0; padding:0; background-color:#0e1117; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-family: sans-serif;">
-                            <div id="status" style="margin-bottom: 10px; color: #38BDF8;">Connecting to stream...</div>
-                            <img id="videoStream" style="max-width: 100%; height: auto; border: 1px solid #333;" />
+                        <body style="margin:0; padding:0; background-color:#0e1117; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-family: sans-serif;">  # noqa: E501
+                            <div id="status" style="margin-bottom: 10px; color: #38BDF8;">Connecting to stream...</div>  # noqa: E501
+                            <img id="videoStream" style="max-width: 100%; height: auto; border: 1px solid #333;" />  # noqa: E501
                             <script>
-                                var wsUrl = "ws://" + window.parent.location.hostname + ":8000/api/v1";
-                                var ws = new WebSocket(wsUrl + "/streams/live/{s['id']}?token={st.session_state.token}");
+                                var wsUrl = "ws://" + window.parent.location.hostname + ":8000/api/v1";  # noqa: E501
+                                var ws = new WebSocket(wsUrl + "/streams/live/{s['id']}?token={st.session_state.token}");  # noqa: E501
                                 ws.binaryType = "blob";
                                 var img = document.getElementById("videoStream");
                                 var statusDiv = document.getElementById("status");
-                                
+
                                 ws.onopen = function() {{
                                     statusDiv.innerText = "Connected - Waiting for frames...";
                                 }};
-                                
+
                                 ws.onmessage = function(event) {{
-                                    statusDiv.style.display = 'none'; // Hide status once frames arrive
+                                    statusDiv.style.display = 'none'; // Hide status once frames arrive  # noqa: E501
                                     if (img.src) {{
                                         URL.revokeObjectURL(img.src);
                                     }}
                                     img.src = URL.createObjectURL(event.data);
                                 }};
-                                
+
                                 ws.onerror = function(error) {{
-                                    statusDiv.innerText = "Error: Connection lost or failed to connect.";
+                                    statusDiv.innerText = "Error: Connection lost or failed to connect.";  # noqa: E501
                                     statusDiv.style.color = "#ef4444";
                                 }};
-                                
+
                                 ws.onclose = function() {{
                                     statusDiv.innerText = "Connection closed.";
                                     statusDiv.style.display = 'block';

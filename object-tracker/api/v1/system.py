@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends
-from core.metrics import SystemMetrics
-from core.dependencies import get_model_manager, get_job_manager
-from core.model_manager import ModelManager
+
+from core.dependencies import get_job_manager, get_model_manager
 from core.job_manager import JobManager, JobStatus
+from core.metrics import SystemMetrics
+from core.model_manager import ModelManager
 
 router = APIRouter()
 
@@ -25,8 +26,8 @@ async def get_performance_metrics(job_manager: JobManager = Depends(get_job_mana
 @router.get("/diagnostics")
 async def get_diagnostics(job_manager: JobManager = Depends(get_job_manager)):
     """Detailed system and streaming diagnostics."""
-    from core.stream_manager import stream_manager
     from core.profiler import system_profiler
+    from core.stream_manager import stream_manager
 
     active_streams = stream_manager.get_active_streams()
 

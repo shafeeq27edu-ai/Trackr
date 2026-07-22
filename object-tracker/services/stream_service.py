@@ -1,18 +1,17 @@
-import cv2
-import time
 import asyncio
-import numpy as np
+import os
+import threading
+import time
+
+import cv2
 import supervision as sv
-import base64
-from tracker.detector import YoloDetector
-from tracker.tracker import ByteTrackerWrapper
-from tracker.analytics import AnalyticsEngine
-from core.stream_manager import StreamManager, StreamStatus
+
 from core.logging import logger
 from core.profiler import system_profiler
-
-import threading
-import os
+from core.stream_manager import StreamManager, StreamStatus
+from tracker.analytics import AnalyticsEngine
+from tracker.detector import YoloDetector
+from tracker.tracker import ByteTrackerWrapper
 
 
 class StreamReader:
@@ -47,7 +46,8 @@ class StreamReader:
             self.ret, self.frame = self.cap.read()
             if not self.ret:
                 logger.warning(
-                    f"StreamReader: Opened source {self.source_id} but failed to read initial frame."
+                    f"StreamReader: Opened source {self.source_id} "
+                    "but failed to read initial frame."
                 )
             self.thread = threading.Thread(target=self._update, daemon=True)
             self.thread.start()
@@ -217,7 +217,8 @@ async def process_live_stream(
                     await asyncio.sleep(0.05)
                     continue
                 logger.warning(
-                    f"Stream {stream_id} ended or failed to read frame. Attempting reconnect in 2s..."
+                    f"Stream {stream_id} ended or failed to read frame. "
+                    "Attempting reconnect in 2s..."
                 )
                 stream_manager.update_stream(
                     stream_id, error="Camera feed lost. Reconnecting...", camera_connected=False
@@ -240,13 +241,14 @@ async def process_live_stream(
 
             # Frame skipping (simple approach):
             # Detections are generated completely asynchronously by InferenceWorker.
-            # We simply fetch the latest available boxes to overlay on this frame, guaranteeing zero latency.
+            # We fetch the latest available boxes to overlay on this frame,
+            # guaranteeing zero latency.
 
             detections, detections_id = inference_worker.get_latest()
 
             annotated_frame = frame
             if detections is not None:
-                # 3. Analytics (Only process if this is a new set of detections to avoid double counting)
+                # 3. Analytics (Only process if new detections to avoid double counting)
                 if last_detections_id_local != detections_id:
                     analytics.process_detections(detections, detector.names, frames_processed)
                     last_detections_id_local = detections_id

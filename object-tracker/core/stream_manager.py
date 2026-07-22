@@ -1,11 +1,10 @@
-import asyncio
 import uuid
-import time
+from datetime import datetime
 from enum import Enum
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
+
 from fastapi import WebSocket
 from pydantic import BaseModel, Field
-from datetime import datetime
 
 
 class StreamStatus(str, Enum):
@@ -80,7 +79,8 @@ class StreamManager:
             if stream.stop_event:
                 stream.stop_event.set()
             del self._streams[stream_id]
-            # Connections should close automatically when they fail to receive data or check stream existence
+            # Connections should close automatically when they fail to receive data
+            # or check stream existence
             if stream_id in self._active_connections:
                 del self._active_connections[stream_id]
             return True

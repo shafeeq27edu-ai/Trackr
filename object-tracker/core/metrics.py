@@ -1,6 +1,7 @@
+from typing import Any, Dict
+
 import psutil
 import torch
-from typing import Dict, Any
 
 
 class SystemMetrics:

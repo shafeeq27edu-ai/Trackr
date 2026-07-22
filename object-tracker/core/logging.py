@@ -1,7 +1,7 @@
 import logging
 import logging.config
 import os
-import sys
+
 from config.settings import settings
 
 

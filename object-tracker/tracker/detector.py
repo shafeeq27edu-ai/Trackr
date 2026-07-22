@@ -1,7 +1,7 @@
+from typing import List
+
 import numpy as np
 import torch
-from typing import List
-from typing import List, Dict, Any, Union
 
 # PyTorch 2.6 compatibility workaround for ultralytics loading weights
 _original_load = torch.load
@@ -15,9 +15,10 @@ def safe_load(*args, **kwargs):
 
 torch.load = safe_load
 
-from ultralytics import YOLO
-import supervision as sv
-import os
+import os  # noqa: E402
+
+import supervision as sv  # noqa: E402
+from ultralytics import YOLO  # noqa: E402  # Must be imported after safe_load workaround
 
 # Optimize PyTorch CPU threading for CV workloads
 if not torch.cuda.is_available():
@@ -26,9 +27,9 @@ if not torch.cuda.is_available():
     cores = max(1, multiprocessing.cpu_count() // 2)
     torch.set_num_threads(cores)
 
-from core.models.base import BaseDetector
-from core.plugin_manager import plugin_manager
-from core.logging import logger
+from core.logging import logger  # noqa: E402
+from core.models.base import BaseDetector  # noqa: E402
+from core.plugin_manager import plugin_manager  # noqa: E402
 
 
 class YoloDetectorPlugin(BaseDetector):
@@ -90,7 +91,8 @@ class YoloDetectorPlugin(BaseDetector):
                         self.model_name = onnx_path
                     except Exception as onnx_load_err:
                         logger.warning(
-                            f"Failed to load ONNX model (perhaps missing onnxruntime?): {onnx_load_err}. Falling back to PyTorch model."
+                            "Failed to load ONNX model (perhaps missing onnxruntime?): "
+                            f"{onnx_load_err}. Falling back to PyTorch model."
                         )
                         self.model = pt_model
                 else:

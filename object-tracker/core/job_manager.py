@@ -1,15 +1,16 @@
-from enum import Enum
-from pydantic import BaseModel, Field
-from typing import Dict, Optional, Any
-from datetime import datetime
-import uuid
 import json
+import uuid
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, Optional
 
+from pydantic import BaseModel, Field
+from sqlalchemy.future import select
+
+from core.events import EventType, event_bus
+from core.logging import logger
 from db.database import SessionLocal
 from db.models import Job as JobDB
-from core.events import event_bus, EventType
-from core.logging import logger
-from sqlalchemy.future import select
 
 
 class JobStatus(str, Enum):

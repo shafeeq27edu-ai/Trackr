@@ -1,10 +1,11 @@
-import threading
-import torch
-from typing import Dict, List, Any, Optional, Type
 import logging
+import threading
+from typing import Any, Dict, List, Type
 
+import torch
+
+from core.events import EventType, event_bus
 from core.models.base import BaseDetector
-from core.events import event_bus, EventType
 from core.plugin_manager import plugin_manager
 
 logger = logging.getLogger(__name__)
@@ -60,8 +61,9 @@ class ModelRegistry:
         """
         Retrieves a loaded model, loading it if necessary.
         """
-        from config.settings import get_cached_settings
         import gc
+
+        from config.settings import get_cached_settings
 
         settings = get_cached_settings()
         max_cached = getattr(settings, "max_cached_models", 2)

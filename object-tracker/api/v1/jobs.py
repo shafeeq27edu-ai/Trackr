@@ -1,11 +1,12 @@
 import os
-from fastapi import APIRouter, UploadFile, File, Depends, BackgroundTasks, HTTPException, Form
+from typing import Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
-from typing import Dict, List, Optional
-from core.dependencies import get_job_manager, get_job_service
-from core.job_manager import JobManager, JobStatus, Job
-from core.logging import logger
+
 from api.deps import get_current_user
+from core.dependencies import get_job_manager, get_job_service
+from core.job_manager import Job, JobManager, JobStatus
 from db.models import User
 from services.job_service import JobService
 

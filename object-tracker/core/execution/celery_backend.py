@@ -1,4 +1,5 @@
-from typing import Callable, Any, Dict
+from typing import Any, Callable, Dict
+
 from core.execution.base import ExecutionBackend
 from core.logging import logger
 
@@ -19,7 +20,8 @@ class CeleryExecutionBackend(ExecutionBackend):
             from core.execution.worker import process_video_task
 
             logger.info(
-                f"DISPATCHING TASK TO CELERY: job_id={kwargs.get('job_id')} input={kwargs.get('input_path')}"
+                f"DISPATCHING TASK TO CELERY: job_id={kwargs.get('job_id')} "
+                f"input={kwargs.get('input_path')}"
             )
             result = process_video_task.delay(**kwargs)
             return result.id

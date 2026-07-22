@@ -1,8 +1,9 @@
+
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Dict, Any
 from pydantic import BaseModel
-from core.models.registry import model_registry
+
 from api.deps import get_current_user
+from core.models.registry import model_registry
 from db.models import User
 
 router = APIRouter()
@@ -22,7 +23,7 @@ def list_models(current_user: User = Depends(get_current_user)):
 def load_model(request: ModelLoadRequest, current_user: User = Depends(get_current_user)):
     """Preloads a model into memory."""
     try:
-        model = model_registry.get_model(request.model_id)
+        model_registry.get_model(request.model_id)
         return {"status": "success", "message": f"Model {request.model_id} loaded successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

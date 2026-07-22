@@ -1,6 +1,7 @@
 import supervision as sv
-from tracker.base import BaseTracker
+
 from core.plugin_manager import plugin_manager
+from tracker.base import BaseTracker
 
 
 class ByteTrackerPlugin(BaseTracker):

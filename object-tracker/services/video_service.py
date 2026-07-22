@@ -1,17 +1,19 @@
-import os
-import cv2
 import json
+import os
+import time
+from typing import Any, Dict, List
+
+import cv2
 import numpy as np
 import supervision as sv
-import time
-from typing import Dict, List, Any
-from tracker.detector import YoloDetector
-from tracker.tracker import ByteTrackerWrapper
-from tracker.analytics import AnalyticsEngine
+
 from config.settings import Settings
-from core.logging import logger
 from core.exceptions import VideoProcessingError
 from core.job_manager import JobManager, JobStatus
+from core.logging import logger
+from tracker.analytics import AnalyticsEngine
+from tracker.detector import YoloDetector
+from tracker.tracker import ByteTrackerWrapper
 
 
 def load_zones(zones_file: str, resolution_wh: tuple) -> List[Dict[str, Any]]:
@@ -258,7 +260,7 @@ async def process_video_file(
                         )
                         current_fps = frame_idx / (time.time() - start_time)
                         try:
-                            loop = asyncio.get_running_loop()
+                            # We just need to ensure the future runs in the existing loop
                             asyncio.ensure_future(
                                 job_manager.update_job(
                                     job_id, progress=progress_percentage, average_fps=current_fps
@@ -280,7 +282,8 @@ async def process_video_file(
         duration = time.time() - start_time
         final_fps = frame_idx / duration if duration > 0 else 0
         logger.info(
-            f"Successfully processed {frame_idx} frames in {duration:.2f} seconds (FPS: {final_fps:.2f})."
+            f"Successfully processed {frame_idx} frames in "
+            f"{duration:.2f} seconds (FPS: {final_fps:.2f})."
         )
 
         # Save Heatmap image
@@ -350,7 +353,8 @@ async def process_video_file(
         )
 
         # Explicitly store heatmap path in the job state dict to ensure API can find it
-        # (Since Job model doesn't strictly have a heatmap_path, we'll store it by convention in output_path dir)
+        # (Since Job model doesn't strictly have a heatmap_path,
+        # we'll store it by convention in output_path dir)
 
         return summary
 

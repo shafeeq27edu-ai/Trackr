@@ -1,12 +1,14 @@
 import csv
+import json
 import os
 import time
-import json
-from typing import Dict, Set, List, Tuple, Any
+from typing import Any, Dict, List, Set, Tuple
+
 import supervision as sv
+
 from core.logging import logger
-from tracker.analytics_base import BaseAnalytics
 from core.plugin_manager import plugin_manager
+from tracker.analytics_base import BaseAnalytics
 
 
 class AnalyticsEnginePlugin(BaseAnalytics):
@@ -122,8 +124,7 @@ class AnalyticsEnginePlugin(BaseAnalytics):
 
         self.total_detections += current_occupancy
 
-        # Track which IDs are active this frame
-        active_ids = set(detections.tracker_id)
+        # Note: Tracker IDs are generated sequentially.
 
         for class_id, tracker_id, bbox in zip(
             detections.class_id, detections.tracker_id, detections.xyxy
@@ -149,7 +150,6 @@ class AnalyticsEnginePlugin(BaseAnalytics):
             # Calculate bounding box center
             center_x = (bbox[0] + bbox[2]) / 2.0
             center_y = (bbox[1] + bbox[3]) / 2.0
-            current_pos = (center_x, center_y)
 
             # Maintain position history (capped to last 10 entries)
             if tracker_id not in self.track_history:

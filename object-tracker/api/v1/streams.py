@@ -1,15 +1,15 @@
 import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-from typing import Dict, Any, List
 
-from core.stream_manager import StreamManager, StreamStatus
-from core.dependencies import get_stream_manager, get_detector
-from tracker.detector import YoloDetector
-from services.stream_service import process_live_stream
-from core.logging import logger
 from api.deps import get_current_user
+from core.dependencies import get_detector, get_stream_manager
+from core.logging import logger
+from core.stream_manager import StreamManager, StreamStatus
 from db.models import User
+from services.stream_service import process_live_stream
+from tracker.detector import YoloDetector
 
 router = APIRouter()
 
@@ -152,8 +152,9 @@ async def websocket_live_stream(
         return
 
     try:
-        from core.security import SECRET_KEY, ALGORITHM
         import jwt
+
+        from core.security import ALGORITHM, SECRET_KEY
 
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if not payload.get("user_id"):
@@ -174,11 +175,11 @@ async def websocket_live_stream(
         while True:
             # Keep connection alive, wait for client disconnect
             # We don't necessarily need to read from client, but we must yield to the event loop
-            data = await websocket.receive_text()
+            await websocket.receive_text()
     except WebSocketDisconnect:
         stream_manager.disconnect_client(websocket, stream_id)
         logger.info(f"Client disconnected from stream {stream_id}")
-    except Exception as e:
+    except Exception:
         stream_manager.disconnect_client(websocket, stream_id)
 
 

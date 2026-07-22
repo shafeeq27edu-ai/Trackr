@@ -1,6 +1,7 @@
+from abc import abstractmethod
+
 import numpy as np
 import supervision as sv
-from abc import abstractmethod
 
 from core.plugin_manager import BasePlugin
 

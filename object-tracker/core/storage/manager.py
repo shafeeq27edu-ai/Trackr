@@ -1,7 +1,8 @@
+import logging
+
+from config.settings import settings
 from core.storage.base import StorageProvider
 from core.storage.local import LocalStorageProvider
-from config.settings import settings
-import logging
 
 logger = logging.getLogger(__name__)
 

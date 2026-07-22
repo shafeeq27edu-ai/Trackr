@@ -1,5 +1,5 @@
-import urllib.request
 import os
+import urllib.request
 
 
 def download_video():
