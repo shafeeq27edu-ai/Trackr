@@ -98,8 +98,9 @@ if not st.session_state.token:
         st.divider()
         st.markdown(
             f'<a href="{API_BASE_URL}/auth/google/login" target="_self" style="text-decoration:none;">'
-            f'<div style="background-color: white; color: #4285F4; border-radius: 8px; text-align: center; padding: 10px; font-weight: bold; border: 1px solid #4285F4; margin-top: 10px;">'
-            f"Continue with Google</div></a>",
+            f'<div style="background-color: #1E293B; color: #E2E8F0; border-radius: 8px; text-align: center; padding: 10px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1); margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.2s;">'
+            f'<img src="https://www.google.com/favicon.ico" width="16" height="16" alt="Google logo"/> Continue with Google'
+            f'</div></a>',
             unsafe_allow_html=True,
         )
 
