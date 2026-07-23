@@ -85,9 +85,26 @@ PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "http://localhost:8000/ap
 
 # --- Session State Management ---
 if "token" not in st.session_state:
-    st.session_state.token = None
+    query_params = st.query_params
+    if "token" in query_params:
+        st.session_state.token = query_params["token"]
+        st.query_params.clear()
+    else:
+        st.session_state.token = None
+
 if "user" not in st.session_state:
-    st.session_state.user = None
+    if st.session_state.token:
+        # Fetch user profile if we just got a token from URL
+        user_res = requests.get(
+            f"{API_BASE_URL}/auth/me", headers={"Authorization": f"Bearer {st.session_state.token}"}
+        )
+        if user_res.status_code == 200:
+            st.session_state.user = user_res.json()
+        else:
+            st.session_state.token = None
+            st.session_state.user = None
+    else:
+        st.session_state.user = None
 if "selected_project_id" not in st.session_state:
     st.session_state.selected_project_id = None
 
@@ -140,6 +157,14 @@ if not st.session_state.token:
                         st.rerun()
                     else:
                         st.error("Invalid credentials.")
+
+        st.divider()
+        st.markdown(
+            f'<a href="{API_BASE_URL}/auth/google/login" target="_self" style="text-decoration:none;">'
+            f'<div style="background-color: white; color: #4285F4; border-radius: 8px; text-align: center; padding: 10px; font-weight: bold; border: 1px solid #4285F4; margin-top: 10px;">'
+            f"Continue with Google</div></a>",
+            unsafe_allow_html=True,
+        )
 
     with tab_register:
         with st.form("register_form"):

@@ -1,2 +1,1 @@
-﻿
-# Implement your logic here
+﻿# Implement your logic here

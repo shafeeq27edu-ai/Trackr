@@ -33,7 +33,6 @@ async def lifespan(app: FastAPI):
 
         logger.info(
             "ModelManager, JobManager, and StreamManager loaded successfully. Ready to serve requests."  # noqa: E501
-
         )
     except Exception as e:
         logger.critical(f"Failed to initialize model during startup: {str(e)}", exc_info=True)
@@ -53,7 +52,13 @@ app = FastAPI(
 )
 
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
+import os  # noqa: E402
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", "trackr-super-secret-development-key-change-in-production"),
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
