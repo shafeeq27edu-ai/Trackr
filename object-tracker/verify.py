@@ -5,6 +5,7 @@ import uuid
 
 API_URL = "http://localhost:8000/api/v1"
 
+
 def run_tests():
     print("Testing API Health...")
     try:
@@ -18,7 +19,9 @@ def run_tests():
     email = f"test_{uuid.uuid4().hex[:6]}@example.com"
     pwd = "password123"
     print(f"Registering user {email}...")
-    res = requests.post(f"{API_URL}/auth/register", json={"email": email, "password": pwd, "name": "Test User"})
+    res = requests.post(
+        f"{API_URL}/auth/register", json={"email": email, "password": pwd, "name": "Test User"}
+    )
     print("Register Status:", res.status_code)
 
     # Test Login
@@ -49,6 +52,7 @@ def run_tests():
         print("Google OAuth redirect failed:", res.status_code)
 
     print("All backend endpoints functioning as expected!")
+
 
 if __name__ == "__main__":
     run_tests()

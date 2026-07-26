@@ -40,6 +40,7 @@ if "user" not in st.session_state:
         else:
             st.session_state.token = None
             st.session_state.user = None
+            st.rerun()
     else:
         st.session_state.user = None
 if "selected_project_id" not in st.session_state:
@@ -61,14 +62,16 @@ def login(email, password):
         user_res = requests.get(f"{API_BASE_URL}/auth/me", headers=get_auth_headers())
         if user_res.status_code == 200:
             st.session_state.user = user_res.json()
-        return True
-    return False
+        return True, "Success"
+    return False, res.json().get("detail", "Invalid credentials.")
 
 
 def register(email, password, name):
     data = {"email": email, "password": password, "name": name}
     res = requests.post(f"{API_BASE_URL}/auth/register", json=data)
-    return res.status_code == 200
+    if res.status_code == 200:
+        return True, "Success"
+    return False, res.json().get("detail", "Registration failed.")
 
 
 def logout():
@@ -88,19 +91,25 @@ if not st.session_state.token:
             l_email = st.text_input("Email")
             l_pwd = st.text_input("Password", type="password")
             if st.form_submit_button("Login"):
-                with st.spinner("Authenticating..."):
-                    if login(l_email, l_pwd):
-                        st.success("Logged in successfully!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials.")
+                if not l_email or not l_pwd:
+                    st.error("Email and Password are required.")
+                elif "@" not in l_email or "." not in l_email:
+                    st.error("Invalid email format.")
+                else:
+                    with st.spinner("Authenticating..."):
+                        success, msg = login(l_email, l_pwd)
+                        if success:
+                            st.success("Logged in successfully!")
+                            st.rerun()
+                        else:
+                            st.error(msg)
 
         st.divider()
         st.markdown(
-            f'<a href="{API_BASE_URL}/auth/google/login" target="_self" style="text-decoration:none;">'
+            f'<a href="{PUBLIC_API_BASE_URL}/auth/google/login" target="_self" style="text-decoration:none;">'
             f'<div style="background-color: #1E293B; color: #E2E8F0; border-radius: 8px; text-align: center; padding: 10px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1); margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.2s;">'
             f'<img src="https://www.google.com/favicon.ico" width="16" height="16" alt="Google logo"/> Continue with Google'
-            f'</div></a>',
+            f"</div></a>",
             unsafe_allow_html=True,
         )
 
@@ -110,11 +119,17 @@ if not st.session_state.token:
             r_email = st.text_input("Email")
             r_pwd = st.text_input("Password", type="password")
             if st.form_submit_button("Register"):
-                with st.spinner("Creating account..."):
-                    if register(r_email, r_pwd, r_name):
-                        st.success("Registered! You can now log in.")
-                    else:
-                        st.error("Registration failed. Email might exist.")
+                if not r_email or not r_pwd or not r_name:
+                    st.error("All fields are required.")
+                elif "@" not in r_email or "." not in r_email:
+                    st.error("Invalid email format.")
+                else:
+                    with st.spinner("Creating account..."):
+                        success, msg = register(r_email, r_pwd, r_name)
+                        if success:
+                            st.success("Registered! You can now log in.")
+                        else:
+                            st.error(msg)
     st.stop()
 
 # --- Main App (Logged In) ---
