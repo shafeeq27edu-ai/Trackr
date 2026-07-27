@@ -1,6 +1,8 @@
+import os
 import uuid
 from datetime import datetime
 
+from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
@@ -13,9 +15,6 @@ from db.database import get_db
 from db.models import User
 from db.schemas import Token, UserCreate, UserResponse
 from services.audit_service import log_audit_event
-
-from authlib.integrations.starlette_client import OAuth
-import os
 
 router = APIRouter()
 
@@ -79,8 +78,8 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 
 @router.get("/google/login")
 async def google_login(request: Request):
-    # Determine the callback URL based on the incoming request
-    redirect_uri = str(request.url_for("auth_google_callback"))
+    public_url = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+    redirect_uri = f"{public_url}/api/v1/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 

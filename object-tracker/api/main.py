@@ -51,9 +51,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+import os  # noqa: E402
+
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
-import os  # noqa: E402
 
 app.add_middleware(
     SessionMiddleware,

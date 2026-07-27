@@ -1,7 +1,6 @@
-import requests
-import time
-import os
 import uuid
+
+import requests
 
 API_URL = "http://localhost:8000/api/v1"
 
@@ -11,7 +10,7 @@ def run_tests():
     try:
         health = requests.get(f"{API_URL}/system/health")
         print("Health Check:", health.json())
-    except Exception as e:
+    except Exception:
         print("API not running, please start it.")
         return
 
@@ -43,7 +42,8 @@ def run_tests():
     res = requests.post(f"{API_URL}/streams", json={"source": "0"}, headers=headers)
     print("Added Stream Status:", res.status_code)
 
-    # Note: Cannot fully test Google OAuth login without browser interaction, but we can verify the redirect URL
+    # Note: Cannot fully test Google OAuth login without browser interaction,
+    # but we can verify the redirect URL
     print("Testing Google OAuth Redirect...")
     res = requests.get(f"{API_URL}/auth/google/login", allow_redirects=False)
     if res.status_code in [302, 307] and "accounts.google.com" in res.headers.get("location", ""):

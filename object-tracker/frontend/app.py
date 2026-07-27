@@ -1,4 +1,5 @@
 # ruff: noqa: E501
+import os
 import time
 
 import pandas as pd
@@ -8,8 +9,6 @@ import streamlit as st
 st.set_page_config(page_title="Trackr Advanced Analytics", page_icon="🎥", layout="wide")
 
 # Custom Premium Styling
-import os
-
 css_path = os.path.join(os.path.dirname(__file__), "style.css")
 with open(css_path, "r") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
