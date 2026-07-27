@@ -14,8 +14,8 @@ def test_upload_invalid_format(client: TestClient):
     assert "Unsupported file format" in message or "not a supported video" in message
 
 
-@patch("fastapi.BackgroundTasks.add_task")
-def test_upload_valid_video(mock_add_task, client: TestClient):
+@patch("core.execution.local_backend.LocalExecutionBackend.submit_job")
+def test_upload_valid_video(mock_submit_job, client: TestClient):
     files = {"file": ("test.mp4", b"dummy video bytes", "video/mp4")}
     response = client.post("/api/v1/jobs/upload", files=files)
 
@@ -24,8 +24,8 @@ def test_upload_valid_video(mock_add_task, client: TestClient):
     assert "job_id" in data
     assert data["status"] == "INITIALIZING"
 
-    # Ensure the background task was dispatched
-    mock_add_task.assert_called_once()
+    # Ensure the background task was dispatched via execution backend
+    mock_submit_job.assert_called_once()
 
 
 def test_get_job_status_not_found(client: TestClient):
@@ -33,8 +33,8 @@ def test_get_job_status_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-@patch("fastapi.BackgroundTasks.add_task")
-def test_get_heatmap_not_ready(mock_add_task, client: TestClient):
+@patch("core.execution.local_backend.LocalExecutionBackend.submit_job")
+def test_get_heatmap_not_ready(mock_submit_job, client: TestClient):
     # We first create a job so it's in the system but not completed
     files = {"file": ("test.mp4", b"dummy video bytes", "video/mp4")}
     upload_res = client.post("/api/v1/jobs/upload", files=files)

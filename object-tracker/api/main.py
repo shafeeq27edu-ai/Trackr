@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from api.v1 import auth, enterprise, health, jobs, models, plugins, projects, streams, system
+from api.v1 import auth, enterprise, health, jobs, models_api, plugins, projects, streams, system
 from core.exceptions import TrackrException
 from core.logging import logger
 
@@ -90,7 +90,7 @@ app.include_router(projects.router, prefix="/api/v1/projects", tags=["projects"]
 app.include_router(jobs.router, prefix="/api/v1", tags=["jobs"])
 app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
 app.include_router(health.router, prefix="/api/v1/system", tags=["health"])
-app.include_router(models.router, prefix="/api/v1", tags=["models"])
+app.include_router(models_api.router, prefix="/api/v1", tags=["models"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["plugins"])
 app.include_router(enterprise.router, prefix="/api/v1", tags=["enterprise"])
 app.include_router(streams.router, prefix="/api/v1/streams", tags=["streams"])
