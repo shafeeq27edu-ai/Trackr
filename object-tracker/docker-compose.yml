@@ -29,6 +29,20 @@ services:
       timeout: 5s
       retries: 5
 
+  db-init:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trackr_user:trackr_password@db/trackr_db
+      - PYTHONPATH=/app
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
     build:
       context: .
@@ -58,6 +72,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
 
   worker:
     build:
@@ -80,6 +96,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
 
   frontend:
     build:
