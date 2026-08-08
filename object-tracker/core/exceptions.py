@@ -58,6 +58,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": True,
-            "message": f"An unexpected internal server error occurred: {str(exc)}",
+            "message": "An unexpected internal server error occurred.",
         },
     )

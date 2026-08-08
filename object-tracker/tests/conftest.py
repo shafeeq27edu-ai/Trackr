@@ -4,6 +4,9 @@ import shutil
 import pytest
 from fastapi.testclient import TestClient
 
+os.environ["SECRET_KEY"] = "test-secret-key-that-is-long-enough-and-secure"
+
+
 from api.main import app
 from config.settings import Settings
 from core.job_manager import JobManager
@@ -45,4 +48,38 @@ def client():
     with TestClient(app) as test_client:
         yield test_client
 
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def test_db():
+    import asyncio
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from db.database import Base
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    
+    async def init_db():
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            
+    asyncio.run(init_db())
+    
+    SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+    session = SessionLocal()
+    yield session
+    
+    asyncio.run(session.close())
+
+
+@pytest.fixture
+def auth_client(test_db):
+    from db.database import get_db
+    
+    async def override_get_db():
+        yield test_db
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
     app.dependency_overrides.clear()

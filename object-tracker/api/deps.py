@@ -16,8 +16,6 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     token = request.headers.get("Authorization")
     if token and token.startswith("Bearer "):
         token = token.split(" ")[1]
-    else:
-        token = request.query_params.get("token")
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

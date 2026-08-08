@@ -12,7 +12,7 @@ from services.stream_service import process_live_stream
 @pytest.mark.anyio
 async def test_process_live_stream():
     stream_manager = StreamManager()
-    stream = stream_manager.create_stream(source="mock_cam")
+    stream = stream_manager.create_stream(source="mock_cam", user_id="test_user_id")
     stream.stop_event = asyncio.Event()
 
     # Create mock frame

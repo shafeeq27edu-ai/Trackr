@@ -18,13 +18,23 @@ class StreamCreateRequest(BaseModel):
     source: str
 
 
+from db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from db.models import Stream
+
 @router.post("")
-def create_stream(
+async def create_stream(
     request: StreamCreateRequest,
     stream_manager: StreamManager = Depends(get_stream_manager),
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    stream = stream_manager.create_stream(request.source)
+    stream = stream_manager.create_stream(request.source, current_user.id)
+    
+    db_stream = Stream(id=stream.id, source=stream.source, user_id=current_user.id)
+    db.add(db_stream)
+    await db.commit()
+    
     return {"id": stream.id, "source": stream.source, "status": stream.status}
 
 
@@ -34,7 +44,7 @@ def list_streams(
     current_user: User = Depends(get_current_user),
 ):
     streams = stream_manager.list_streams()
-    return {"streams": [s.model_dump() for s in streams.values()]}
+    return {"streams": [s.model_dump() for s in streams.values() if s.user_id == current_user.id]}
 
 
 @router.get("/{stream_id}")
@@ -44,7 +54,7 @@ def get_stream(
     current_user: User = Depends(get_current_user),
 ):
     stream = stream_manager.get_stream(stream_id)
-    if not stream:
+    if not stream or stream.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Stream not found")
     return stream.model_dump()
 
@@ -57,7 +67,7 @@ async def start_stream(
     current_user: User = Depends(get_current_user),
 ):
     stream = stream_manager.get_stream(stream_id)
-    if not stream:
+    if not stream or stream.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Stream not found")
 
     if stream.status == StreamStatus.PLAYING:
@@ -81,7 +91,7 @@ def stop_stream(
     current_user: User = Depends(get_current_user),
 ):
     stream = stream_manager.get_stream(stream_id)
-    if not stream:
+    if not stream or stream.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Stream not found")
 
     if stream.stop_event:
@@ -92,14 +102,23 @@ def stop_stream(
 
 
 @router.delete("/{stream_id}")
-def delete_stream(
+async def delete_stream(
     stream_id: str,
     stream_manager: StreamManager = Depends(get_stream_manager),
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    if stream_manager.remove_stream(stream_id):
-        return {"message": "Stream deleted"}
-    raise HTTPException(status_code=404, detail="Stream not found")
+    stream = stream_manager.get_stream(stream_id)
+    if not stream or stream.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Stream not found")
+        
+    stream_manager.remove_stream(stream_id)
+    
+    from sqlalchemy import delete
+    await db.execute(delete(Stream).where(Stream.id == stream_id))
+    await db.commit()
+    
+    return {"message": "Stream deleted"}
 
 
 @router.post("/{stream_id}/record")
@@ -109,7 +128,7 @@ def record_stream(
     current_user: User = Depends(get_current_user),
 ):
     stream = stream_manager.get_stream(stream_id)
-    if not stream:
+    if not stream or stream.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Stream not found")
 
     import os
@@ -130,7 +149,7 @@ def stop_record_stream(
     current_user: User = Depends(get_current_user),
 ):
     stream = stream_manager.get_stream(stream_id)
-    if not stream:
+    if not stream or stream.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Stream not found")
 
     stream_manager.update_stream(stream_id, is_recording=False)
@@ -165,7 +184,7 @@ async def websocket_live_stream(
         return
 
     stream = stream_manager.get_stream(stream_id)
-    if not stream:
+    if not stream or stream.user_id != payload.get("user_id"):
         await websocket.close(code=4004, reason="Stream not found")
         return
 
@@ -185,18 +204,36 @@ async def websocket_live_stream(
 
 @router.websocket("/status")
 async def websocket_global_status(
-    websocket: WebSocket, stream_manager: StreamManager = Depends(get_stream_manager)
+    websocket: WebSocket, 
+    token: str = None,
+    stream_manager: StreamManager = Depends(get_stream_manager)
 ):
-    await stream_manager.connect_status_client(websocket)
+    if not token:
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
+
+    try:
+        import jwt
+        from core.security import ALGORITHM, SECRET_KEY
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        if not user_id:
+            await websocket.close(code=4001, reason="Unauthorized")
+            return
+    except Exception:
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
+
+    await stream_manager.connect_status_client(websocket, user_id)
     try:
         while True:
             # We can use this endpoint to periodically broadcast all streams' statuses
-            await stream_manager.broadcast_status()
+            await stream_manager.broadcast_status(user_id)
             await asyncio.sleep(2)  # Broadast every 2 seconds
 
             # This try block just listens to ensure connection is alive, though wait_for is better
             # We'll just wait here until disconnect
     except WebSocketDisconnect:
-        stream_manager.disconnect_status_client(websocket)
+        stream_manager.disconnect_status_client(websocket, user_id)
     except Exception:
-        stream_manager.disconnect_status_client(websocket)
+        stream_manager.disconnect_status_client(websocket, user_id)

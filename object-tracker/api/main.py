@@ -56,13 +56,19 @@ import os  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
 
+from core.security import SECRET_KEY  # noqa: E402
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SECRET_KEY", "trackr-super-secret-development-key-change-in-production"),
+    secret_key=SECRET_KEY,
 )
+
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:8501,http://localhost:3000")
+origins_list = [origin.strip() for origin in allowed_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -18,11 +18,21 @@ from services.audit_service import log_audit_event
 
 router = APIRouter()
 
+AUTH_CODES = {}
+
 oauth = OAuth()
+from core.logging import logger
+
+client_id = os.getenv("GOOGLE_CLIENT_ID", "dummy")
+client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "dummy")
+
+if client_id == "dummy" or client_secret == "dummy":
+    logger.warning("GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing or set to 'dummy'. Google OAuth login will fail.")
+
 oauth.register(
     name="google",
-    client_id=os.getenv("GOOGLE_CLIENT_ID", "dummy"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET", "dummy"),
+    client_id=client_id,
+    client_secret=client_secret,
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile"},
 )
@@ -88,7 +98,8 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
     try:
         token = await oauth.google.authorize_access_token(request)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error("OAuth error")
+        raise HTTPException(status_code=400, detail="OAuth authorization failed")
 
     user_info = token.get("userinfo")
     if not user_info:
@@ -118,6 +129,16 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
     access_token = create_access_token(data={"user_id": user.id})
     await log_audit_event(db, user.id, "LOGIN_SUCCESS_GOOGLE")
 
-    # Redirect back to the Streamlit app with the token
+    auth_code = str(uuid.uuid4())
+    AUTH_CODES[auth_code] = access_token
+
+    # Redirect back to the Streamlit app with the auth_code
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501")
-    return RedirectResponse(url=f"{frontend_url}/?token={access_token}")
+    return RedirectResponse(url=f"{frontend_url}/?auth_code={auth_code}")
+
+@router.post("/exchange")
+async def exchange_code(code: str):
+    if code in AUTH_CODES:
+        token = AUTH_CODES.pop(code)
+        return {"access_token": token, "token_type": "bearer"}
+    raise HTTPException(status_code=400, detail="Invalid or expired code")

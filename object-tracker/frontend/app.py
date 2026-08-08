@@ -22,9 +22,14 @@ PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "http://localhost:8000/ap
 # --- Session State Management ---
 if "token" not in st.session_state:
     query_params = st.query_params
-    if "token" in query_params:
-        st.session_state.token = query_params["token"]
+    if "auth_code" in query_params:
+        auth_code = query_params["auth_code"]
         st.query_params.clear()
+        res = requests.post(f"{API_BASE_URL}/auth/exchange?code={auth_code}")
+        if res.status_code == 200:
+            st.session_state.token = res.json().get("access_token")
+        else:
+            st.session_state.token = None
     else:
         st.session_state.token = None
 

@@ -4,15 +4,15 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: trackr_user
-      POSTGRES_PASSWORD: trackr_password
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: trackr_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trackr_user -d trackr_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d trackr_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -37,7 +37,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://trackr_user:trackr_password@db/trackr_db
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db/trackr_db
       - PYTHONPATH=/app
     depends_on:
       db:
@@ -52,7 +52,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://trackr_user:trackr_password@db/trackr_db
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db/trackr_db
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - EXECUTION_BACKEND=celery
@@ -83,7 +83,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://trackr_user:trackr_password@db/trackr_db
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db/trackr_db
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - EXECUTION_BACKEND=celery

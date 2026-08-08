@@ -5,9 +5,10 @@ from typing import Optional
 import bcrypt
 import jwt
 
-# Using a dummy secret key for development. In production this should be in .env
 # For Trackr, we will default it if not provided in settings.
-SECRET_KEY = os.getenv("SECRET_KEY", "trackr-super-secret-development-key-change-in-production")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY or SECRET_KEY == "trackr-super-secret-development-key-change-in-production":
+    raise ValueError("SECRET_KEY environment variable is missing or insecure. Set a strong random secret key in .env.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 

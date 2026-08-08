@@ -21,6 +21,18 @@ class User(Base):
     projects = relationship("Project", back_populates="owner")
     jobs = relationship("Job", back_populates="owner")
     audit_logs = relationship("AuditLog", back_populates="user")
+    streams = relationship("Stream", back_populates="owner")
+
+
+class Stream(Base):
+    __tablename__ = "streams"
+
+    id = Column(String, primary_key=True, index=True)
+    source = Column(String)
+    user_id = Column(String, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    owner = relationship("User", back_populates="streams")
 
 
 class Project(Base):

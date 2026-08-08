@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends
 
+from api.deps import get_current_user
+from db.models import User
+
 from core.dependencies import get_job_manager, get_model_manager
 from core.job_manager import JobManager, JobStatus
 from core.metrics import SystemMetrics
@@ -9,7 +12,10 @@ router = APIRouter()
 
 
 @router.get("/performance")
-async def get_performance_metrics(job_manager: JobManager = Depends(get_job_manager)):
+async def get_performance_metrics(
+    job_manager: JobManager = Depends(get_job_manager),
+    current_user: User = Depends(get_current_user),
+):
     """Returns general performance metrics like processing throughput and active jobs."""
     jobs = await job_manager.get_all_jobs()
     active_jobs = [
@@ -24,7 +30,10 @@ async def get_performance_metrics(job_manager: JobManager = Depends(get_job_mana
 
 
 @router.get("/diagnostics")
-async def get_diagnostics(job_manager: JobManager = Depends(get_job_manager)):
+async def get_diagnostics(
+    job_manager: JobManager = Depends(get_job_manager),
+    current_user: User = Depends(get_current_user),
+):
     """Detailed system and streaming diagnostics."""
     from core.profiler import system_profiler
     from core.stream_manager import stream_manager
@@ -54,12 +63,15 @@ async def get_diagnostics(job_manager: JobManager = Depends(get_job_manager)):
 
 
 @router.get("/resources")
-def get_resource_metrics():
+def get_resource_metrics(current_user: User = Depends(get_current_user)):
     """Returns CPU, Memory, and GPU usage metrics."""
     return SystemMetrics.get_all_metrics()
 
 
 @router.get("/models")
-def get_loaded_models(model_manager: ModelManager = Depends(get_model_manager)):
+def get_loaded_models(
+    model_manager: ModelManager = Depends(get_model_manager),
+    current_user: User = Depends(get_current_user),
+):
     """Returns information about loaded AI models and hardware."""
     return {"device": model_manager.device, "loaded_models": model_manager.get_loaded_models_info()}
