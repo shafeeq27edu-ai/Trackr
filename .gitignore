@@ -18,3 +18,9 @@ data/
 # IDE / Editor
 .vscode/
 .idea/
+
+# Binaries
+*.onnx
+*.onnx.data
+*.dll
+*.bz2

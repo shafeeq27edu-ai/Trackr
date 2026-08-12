@@ -13,18 +13,26 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login", auto_error=Fa
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
-    token = request.headers.get("Authorization")
-    if token and token.startswith("Bearer "):
-        token = token.split(" ")[1]
+    auth_header: str | None = request.headers.get("Authorization")
+    if auth_header is None or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token: str = auth_header.split(" ")[1]
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("user_id")
-        if user_id is None:
+        user_id = payload.get("user_id")
+        if not isinstance(user_id, str):
             raise credentials_exception
         token_data = TokenData(user_id=user_id)
     except jwt.PyJWTError:

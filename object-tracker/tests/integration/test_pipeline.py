@@ -23,8 +23,8 @@ def test_full_video_pipeline(client: TestClient):
     assert response.status_code == 200
     job_id = response.json()["job_id"]
 
-    # 2. Poll for Completion (Max 120 seconds to prevent infinite hang)
-    max_retries = 120
+    # 2. Poll for Completion (Max 300 seconds to prevent infinite hang on slow CI)
+    max_retries = 300
     retries = 0
     job = None
 

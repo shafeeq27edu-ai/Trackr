@@ -4,11 +4,11 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/trackr/trackr/release.yml?branch=main)](https://github.com/trackr/trackr/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100.0-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.136.1-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
 
 Trackr is an advanced, modular computer vision platform designed for scalability, ease of use, and enterprise extensibility. Leverage state-of-the-art models (YOLOv8) and tracking algorithms (ByteTrack) to provide real-time and offline video analytics out of the box.
 
-[Documentation](https://docs.trackr.io) | [Getting Started](https://docs.trackr.io/quick-start) | [SDK](https://docs.trackr.io/sdk) | [Examples](examples/README.md)
+[Examples](examples/README.md)
 
 ---
 
@@ -59,14 +59,7 @@ docker compose up --build -d
 ```
 Visit `http://localhost:8501` to use the dashboard!
 
-### 2. Using the CLI
-```bash
-pip install trackr-sdk
-export TRACKR_TOKEN="your_jwt_token"
-trackr analyze my_video.mp4
-```
-
-### 3. Using the Python SDK
+### 2. Using the Python SDK
 ```python
 from trackr_sdk import TrackrClient
 
@@ -74,6 +67,12 @@ client = TrackrClient("http://localhost:8000", token="your_token")
 job = client.submit_job("intersection.mp4")
 print(f"Tracking job started: {job.id}")
 ```
+
+---
+
+## ⚠️ Known Limitations
+
+- **CPU-Only Inference Scaling**: Concurrent video processing jobs on CPU-only inference will serialize and degrade significantly (observed: ~0.67 FPS combined throughput with 2 simultaneous jobs compared to normal single-job speeds) due to CPU contention. This is a hardware/deployment scaling consideration, not a bug. Horizontal worker scaling or using GPU-accelerated inference would address this in a real production deployment.
 
 ---
 

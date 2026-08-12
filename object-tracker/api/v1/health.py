@@ -17,14 +17,14 @@ def health_check():
 
 
 @router.get("/ready")
-def readiness_check(db: Session = Depends(get_db), detector: YoloDetector = Depends(get_detector)):
+async def readiness_check(db: Session = Depends(get_db), detector: YoloDetector = Depends(get_detector)):
     """
     Check if the application is ready to accept traffic.
     Verifies database connectivity and model loading.
     """
     try:
         # Check Database
-        db.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
     except Exception as e:
         logger.error(f"Readiness check failed - DB error: {e}")
         raise HTTPException(

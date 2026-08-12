@@ -6,9 +6,10 @@ import bcrypt
 import jwt
 
 # For Trackr, we will default it if not provided in settings.
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY or SECRET_KEY == "trackr-super-secret-development-key-change-in-production":
+_secret = os.getenv("SECRET_KEY")
+if not _secret or _secret == "trackr-super-secret-development-key-change-in-production":
     raise ValueError("SECRET_KEY environment variable is missing or insecure. Set a strong random secret key in .env.")
+SECRET_KEY: str = _secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 

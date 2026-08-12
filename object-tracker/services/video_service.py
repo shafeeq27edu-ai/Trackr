@@ -147,12 +147,11 @@ async def process_video_file(
             batch_size = 1
             frame_batch = []
 
-            def process_batch():
-                nonlocal frame_idx
+            async def process_batch():
+                nonlocal frame_idx, heatmap_canvas
                 if not frame_batch:
                     return
 
-                # 1. Detect objects in batch
                 batch_detections = detector.detect_batch(
                     frame_batch, conf_threshold=settings.confidence_threshold, imgsz=640
                 )
@@ -259,25 +258,22 @@ async def process_video_file(
                             min((frame_idx / total_frames) * 100, 100.0) if total_frames > 0 else 0
                         )
                         current_fps = frame_idx / (time.time() - start_time)
-                        try:
-                            # We just need to ensure the future runs in the existing loop
-                            asyncio.ensure_future(
-                                job_manager.update_job(
-                                    job_id, progress=progress_percentage, average_fps=current_fps
-                                )
-                            )
-                        except RuntimeError:
-                            pass
+                        
+                        await job_manager.update_job(
+                            job_id, progress=progress_percentage, average_fps=current_fps
+                        )
+                        # Explicitly yield to the event loop so progress writes process smoothly
+                        await asyncio.sleep(0)
 
                 frame_batch.clear()
 
             for frame in sv.get_video_frames_generator(input_path, stride=stride):
                 frame_batch.append(frame)
                 if len(frame_batch) >= batch_size:
-                    process_batch()
+                    await process_batch()
 
             # Process any remaining frames
-            process_batch()
+            await process_batch()
 
         duration = time.time() - start_time
         final_fps = frame_idx / duration if duration > 0 else 0

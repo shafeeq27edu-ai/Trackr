@@ -5,3 +5,9 @@ trackr.db
 htmlcov/
 outputs/
 data/sample_videos/
+
+# Binaries
+*.onnx
+*.onnx.data
+*.dll
+*.bz2
