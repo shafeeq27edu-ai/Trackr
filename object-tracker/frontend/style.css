@@ -1,60 +1,105 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* Global Fonts & Backgrounds */
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
-    /* Streamlit's new theme config handles basic background/text colors, but we keep this for specificity */
+    color: #94A3B8;
 }
-h1, h2, h3, h4, h5, h6 {
+
+/* Headings */
+h1 {
     font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 2.5rem;
     background: -webkit-linear-gradient(45deg, #A78BFA, #38BDF8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
 }
-.stMetric {
-    background: rgba(30, 41, 59, 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.stMetric:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 30px -5px rgba(56, 189, 248, 0.15);
-}
-div[data-testid="stExpander"] {
-    background: rgba(30, 41, 59, 0.4);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    margin-bottom: 15px;
-    transition: all 0.3s ease;
-}
-div[data-testid="stExpander"]:hover {
-    border-color: rgba(56, 189, 248, 0.3);
-}
-.stButton>button {
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    color: white !important;
-    border: none;
-    border-radius: 8px;
+
+h2, h3 {
+    font-family: 'Outfit', sans-serif;
     font-weight: 600;
-    padding: 0.5rem 1rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+    color: #F8FAFC;
 }
-.stButton>button:hover {
+
+h2 {
+    font-size: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+h3 {
+    font-size: 1.25rem;
+    margin-top: 1.25rem;
+}
+
+/* Container / Surface Styling */
+.stMetric, div[data-testid="stExpander"], div[data-testid="stForm"] {
+    background: #1E293B !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.stMetric {
+    padding: 1.5rem !important;
+}
+
+div[data-testid="stExpander"] {
+    margin-bottom: 1rem;
+}
+
+div[data-testid="stExpander"] > details > summary {
+    padding: 1rem 1.5rem;
+}
+
+.stMetric:hover, div[data-testid="stExpander"]:hover, div[data-testid="stForm"]:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
-    background: linear-gradient(90deg, #4f46e5, #7c3aed);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border-color: rgba(139, 92, 246, 0.3) !important;
 }
-.stTextInput>div>div>input {
-    background-color: rgba(15, 23, 42, 0.6);
+
+/* Buttons */
+.stButton>button {
+    background: #1E293B;
+    color: #F8FAFC !important;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
     border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
 }
+
+.stButton>button:hover {
+    background: #334155;
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.stButton>button[kind="primary"] {
+    background: #8B5CF6;
+    border-color: #8B5CF6;
+    font-weight: 600;
+    box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.4);
+}
+
+.stButton>button[kind="primary"]:hover {
+    background: #7C3AED;
+    border-color: #7C3AED;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+}
+
+/* Inputs */
+.stTextInput>div>div>input {
+    background-color: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #F8FAFC;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
 .stTextInput>div>div>input:focus {
     border-color: #38BDF8;
     box-shadow: 0 0 0 1px #38BDF8;
@@ -64,6 +109,69 @@ div[data-testid="stExpander"]:hover {
 div[data-testid="stToast"] {
     border-radius: 12px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-    background: rgba(30, 41, 59, 0.9);
+    background: #1E293B;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #F8FAFC;
 }
+
+/* Empty States Styling */
+.empty-state {
+    text-align: center;
+    padding: 50px;
+    background: #1E293B;
+    border-radius: 12px;
+    border: 1px dashed rgba(255,255,255,0.1);
+    margin: 20px 0;
+}
+
+.empty-state h3 {
+    color: #94A3B8;
+    margin-bottom: 10px;
+    font-size: 1.25rem;
+}
+
+.empty-state p {
+    color: #64748B;
+}
+
+/* Status Pills */
+.status-pill {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-completed {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-failed {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.status-processing, .status-initializing {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.status-playing {
+    background-color: rgba(56, 189, 248, 0.1);
+    color: #38BDF8;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.status-stopped {
+    background-color: rgba(148, 163, 184, 0.1);
+    color: #94A3B8;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+

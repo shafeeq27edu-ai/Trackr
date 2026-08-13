@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-st.set_page_config(page_title="Trackr Advanced Analytics", page_icon="🎥", layout="wide")
+st.set_page_config(page_title="Trackr", page_icon="🎯", layout="wide")
 
 # Custom Premium Styling
 css_path = os.path.join(os.path.dirname(__file__), "style.css")
@@ -137,7 +137,7 @@ if not st.session_state.token:
     st.stop()
 
 # --- Main App (Logged In) ---
-st.title("🎥 Trackr: Advanced Intelligence & Analytics")
+st.title("🎯 Trackr")
 
 # --- Sidebar ---
 user_data = st.session_state.user or {}
@@ -343,9 +343,9 @@ with tab_batch:
             if not proj_jobs:
                 st.markdown(
                     """
-                    <div style="text-align: center; padding: 50px; background: rgba(30,41,59,0.3); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1); margin: 20px 0;">
-                        <h3 style="color: #94A3B8; margin-bottom: 10px;">No jobs yet 🎬</h3>
-                        <p style="color: #64748B;">Upload a video to start processing and see analytics here.</p>
+                    <div class="empty-state">
+                        <h3>No jobs yet 🎬</h3>
+                        <p>Upload a video to start processing and see analytics here.</p>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -551,9 +551,9 @@ with tab_live:
         if not streams:
             st.markdown(
                 """
-                <div style="text-align: center; padding: 50px; background: rgba(30,41,59,0.3); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1); margin: 20px 0;">
-                    <h3 style="color: #94A3B8; margin-bottom: 10px;">No active streams 📡</h3>
-                    <p style="color: #64748B;">Add a new RTSP or webcam source above to start live tracking.</p>
+                <div class="empty-state">
+                    <h3>No active streams 📡</h3>
+                    <p>Add a new RTSP or webcam source above to start live tracking.</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
