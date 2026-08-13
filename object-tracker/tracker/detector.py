@@ -124,9 +124,10 @@ class YoloDetectorPlugin(BaseDetector):
         detections = sv.Detections.from_ultralytics(result)
 
         # Filter out low-confidence detections
-        detections = detections[detections.confidence >= conf_threshold]
+        if detections.confidence is not None:
+            detections = detections[detections.confidence >= conf_threshold]
 
-        return detections
+        return detections  # type: ignore[return-value]
 
     def detect_batch(
         self, frames: List[np.ndarray], conf_threshold: float = 0.25, imgsz: int = 640
@@ -143,7 +144,8 @@ class YoloDetectorPlugin(BaseDetector):
         batch_detections = []
         for result in results:
             detections = sv.Detections.from_ultralytics(result)
-            detections = detections[detections.confidence >= conf_threshold]
+            if detections.confidence is not None:
+                detections = detections[detections.confidence >= conf_threshold]
             batch_detections.append(detections)
 
         return batch_detections

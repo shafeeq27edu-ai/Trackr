@@ -70,14 +70,14 @@ class JobManager:
                         f"Aborting {len(active_jobs)} active jobs due to server restart."
                     )
                     for db_job in active_jobs:
-                        db_job.status = JobStatus.FAILED.value
-                        db_job.error = "Job aborted due to server restart."
+                        db_job.status = JobStatus.FAILED.value  # type: ignore[assignment]
+                        db_job.error = "Job aborted due to server restart."  # type: ignore[assignment]
                     await db.commit()
             except Exception as e:
                 await db.rollback()
                 logger.error(f"Error syncing active jobs: {e}")
 
-    async def create_job(self, filename: str, user_id: str = None, project_id: str = None) -> Job:
+    async def create_job(self, filename: str, user_id: Optional[str] = None, project_id: Optional[str] = None) -> Job:
         job = Job(filename=filename, user_id=user_id, project_id=project_id)
         self._jobs[job.id] = job
 
@@ -107,25 +107,25 @@ class JobManager:
             db_job = result.scalar_one_or_none()
             if db_job:
                 analytics = None
-                if db_job.analytics:
-                    analytics = json.loads(db_job.analytics)
+                if db_job.analytics:  # type: ignore
+                    analytics = json.loads(db_job.analytics)  # type: ignore
 
                 job = Job(
-                    id=db_job.id,
-                    filename=db_job.filename,
-                    status=JobStatus(db_job.status),
-                    progress=db_job.progress,
-                    stage=db_job.stage,
-                    start_time=db_job.start_time,
-                    completion_time=db_job.completion_time,
-                    duration=db_job.duration,
-                    error=db_job.error,
-                    output_path=db_job.output_path,
+                    id=str(db_job.id),  # type: ignore[arg-type]
+                    filename=str(db_job.filename),  # type: ignore[arg-type]
+                    status=JobStatus(db_job.status),  # type: ignore[arg-type]
+                    progress=float(db_job.progress),  # type: ignore[arg-type]
+                    stage=str(db_job.stage),  # type: ignore[arg-type]
+                    start_time=db_job.start_time,  # type: ignore[arg-type]
+                    completion_time=db_job.completion_time,  # type: ignore[arg-type]
+                    duration=db_job.duration,  # type: ignore[arg-type]
+                    error=db_job.error,  # type: ignore[arg-type]
+                    output_path=db_job.output_path,  # type: ignore[arg-type]
                     analytics=analytics,
-                    average_fps=db_job.average_fps,
-                    processing_throughput=db_job.processing_throughput,
-                    user_id=db_job.user_id,
-                    project_id=db_job.project_id,
+                    average_fps=db_job.average_fps,  # type: ignore[arg-type]
+                    processing_throughput=db_job.processing_throughput,  # type: ignore[arg-type]
+                    user_id=db_job.user_id,  # type: ignore[arg-type]
+                    project_id=db_job.project_id,  # type: ignore[arg-type]
                 )
                 return job
         return None
@@ -187,22 +187,22 @@ class JobManager:
                     result = await db.execute(select(JobDB).filter(JobDB.id == job_id))
                     db_job = result.scalar_one_or_none()
                     if db_job:
-                        db_job.status = job.status.value
-                        db_job.progress = job.progress
-                        db_job.stage = job.stage
+                        db_job.status = job.status.value  # type: ignore[attr-defined]
+                        db_job.progress = job.progress  # type: ignore[attr-defined]
+                        db_job.stage = job.stage  # type: ignore[attr-defined]
                         if error is not None:
-                            db_job.error = job.error
+                            db_job.error = job.error  # type: ignore[attr-defined]
                         if output_path is not None:
-                            db_job.output_path = job.output_path
+                            db_job.output_path = job.output_path  # type: ignore[attr-defined]
                         if average_fps is not None:
-                            db_job.average_fps = job.average_fps
+                            db_job.average_fps = job.average_fps  # type: ignore[attr-defined]
                         if processing_throughput is not None:
-                            db_job.processing_throughput = job.processing_throughput
+                            db_job.processing_throughput = job.processing_throughput  # type: ignore[attr-defined]
                         if analytics is not None:
-                            db_job.analytics = json.dumps(job.analytics)
+                            db_job.analytics = json.dumps(job.analytics)  # type: ignore[attr-defined]
                         if job.completion_time:
-                            db_job.completion_time = job.completion_time
-                            db_job.duration = job.duration
+                            db_job.completion_time = job.completion_time  # type: ignore[attr-defined]
+                            db_job.duration = job.duration  # type: ignore[attr-defined]
 
                         await db.commit()
                 except Exception as e:
@@ -227,25 +227,25 @@ class JobManager:
             result = await db.execute(select(JobDB))
             for db_job in result.scalars().all():
                 analytics = None
-                if db_job.analytics:
-                    analytics = json.loads(db_job.analytics)
+                if db_job.analytics:  # type: ignore
+                    analytics = json.loads(db_job.analytics)  # type: ignore
 
                 jobs[db_job.id] = Job(
-                    id=db_job.id,
-                    filename=db_job.filename,
-                    status=JobStatus(db_job.status),
-                    progress=db_job.progress,
-                    stage=db_job.stage,
-                    start_time=db_job.start_time,
-                    completion_time=db_job.completion_time,
-                    duration=db_job.duration,
-                    error=db_job.error,
-                    output_path=db_job.output_path,
+                    id=str(db_job.id),  # type: ignore[arg-type]
+                    filename=str(db_job.filename),  # type: ignore[arg-type]
+                    status=JobStatus(db_job.status),  # type: ignore[arg-type]
+                    progress=float(db_job.progress),  # type: ignore[arg-type]
+                    stage=str(db_job.stage),  # type: ignore[arg-type]
+                    start_time=db_job.start_time,  # type: ignore[arg-type]
+                    completion_time=db_job.completion_time,  # type: ignore[arg-type]
+                    duration=db_job.duration,  # type: ignore[arg-type]
+                    error=db_job.error,  # type: ignore[arg-type]
+                    output_path=db_job.output_path,  # type: ignore[arg-type]
                     analytics=analytics,
-                    average_fps=db_job.average_fps,
-                    processing_throughput=db_job.processing_throughput,
-                    user_id=db_job.user_id,
-                    project_id=db_job.project_id,
+                    average_fps=db_job.average_fps,  # type: ignore[arg-type]
+                    processing_throughput=db_job.processing_throughput,  # type: ignore[arg-type]
+                    user_id=db_job.user_id,  # type: ignore[arg-type]
+                    project_id=db_job.project_id,  # type: ignore[arg-type]
                 )
         return jobs
 
@@ -256,54 +256,26 @@ class JobManager:
             result = await db.execute(select(JobDB).filter(JobDB.user_id == user_id))
             for db_job in result.scalars().all():
                 analytics = None
-                if db_job.analytics:
-                    analytics = json.loads(db_job.analytics)
+                if db_job.analytics:  # type: ignore
+                    analytics = json.loads(db_job.analytics)  # type: ignore
 
                 jobs.append(
                     Job(
-                        id=db_job.id,
-                        filename=db_job.filename,
-                        status=JobStatus(db_job.status),
-                        progress=db_job.progress,
-                        stage=db_job.stage,
-                        start_time=db_job.start_time,
-                        completion_time=db_job.completion_time,
-                        duration=db_job.duration,
-                        error=db_job.error,
-                        output_path=db_job.output_path,
+                        id=str(db_job.id),  # type: ignore[arg-type]
+                        filename=str(db_job.filename),  # type: ignore[arg-type]
+                        status=JobStatus(db_job.status),  # type: ignore[arg-type]
+                        progress=float(db_job.progress),  # type: ignore[arg-type]
+                        stage=str(db_job.stage),  # type: ignore[arg-type]
+                        start_time=db_job.start_time,  # type: ignore[arg-type]
+                        completion_time=db_job.completion_time,  # type: ignore[arg-type]
+                        duration=db_job.duration,  # type: ignore[arg-type]
+                        error=db_job.error,  # type: ignore[arg-type]
+                        output_path=db_job.output_path,  # type: ignore[arg-type]
                         analytics=analytics,
-                        average_fps=db_job.average_fps,
-                        processing_throughput=db_job.processing_throughput,
-                        user_id=db_job.user_id,
-                        project_id=db_job.project_id,
-                    )
-                )
-        return jobs
-
-        async with SessionLocal() as db:
-            result = await db.execute(select(JobDB).filter(JobDB.user_id == user_id))
-            for db_job in result.scalars().all():
-                analytics = None
-                if db_job.analytics:
-                    analytics = json.loads(db_job.analytics)
-
-                jobs.append(
-                    Job(
-                        id=db_job.id,
-                        filename=db_job.filename,
-                        status=JobStatus(db_job.status),
-                        progress=db_job.progress,
-                        stage=db_job.stage,
-                        start_time=db_job.start_time,
-                        completion_time=db_job.completion_time,
-                        duration=db_job.duration,
-                        error=db_job.error,
-                        output_path=db_job.output_path,
-                        analytics=analytics,
-                        average_fps=db_job.average_fps,
-                        processing_throughput=db_job.processing_throughput,
-                        user_id=db_job.user_id,
-                        project_id=db_job.project_id,
+                        average_fps=db_job.average_fps,  # type: ignore[arg-type]
+                        processing_throughput=db_job.processing_throughput,  # type: ignore[arg-type]
+                        user_id=db_job.user_id,  # type: ignore[arg-type]
+                        project_id=db_job.project_id,  # type: ignore[arg-type]
                     )
                 )
         return jobs

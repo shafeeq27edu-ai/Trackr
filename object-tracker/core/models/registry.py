@@ -18,13 +18,18 @@ class ModelRegistry:
     """
 
     _instance = None
+    _models: Dict[str, BaseDetector]
+    _loaded_instances: Dict[str, BaseDetector]
+    _loaded_order: List[str]
+    _lock: threading.Lock
+    device: str
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(ModelRegistry, cls).__new__(cls)
-            cls._instance._models: Dict[str, BaseDetector] = {}
-            cls._instance._loaded_instances: Dict[str, BaseDetector] = {}
-            cls._instance._loaded_order: List[str] = []
+            cls._instance._models = {}
+            cls._instance._loaded_instances = {}
+            cls._instance._loaded_order = []
             cls._instance._lock = threading.Lock()
             cls._instance.device = cls._instance._detect_device()
         return cls._instance
@@ -55,7 +60,7 @@ class ModelRegistry:
         detectors = plugin_manager.get_plugins_by_category("detection")
         for detector in detectors:
             # Register by name
-            self._models[detector.name] = detector
+            self._models[detector.name] = detector  # type: ignore[assignment]
 
     def get_model(self, model_id: str) -> BaseDetector:
         """
@@ -92,7 +97,7 @@ class ModelRegistry:
                         oldest_instance = self._loaded_instances.pop(oldest_id)
                         # Clear model weights and release resources
                         if hasattr(oldest_instance, "model"):
-                            oldest_instance.model = None
+                            oldest_instance.model = None  # type: ignore[attr-defined]
 
                         gc.collect()
                         if self.device == "cuda":

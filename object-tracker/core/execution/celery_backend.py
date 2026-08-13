@@ -23,7 +23,7 @@ class CeleryExecutionBackend(ExecutionBackend):
                 f"DISPATCHING TASK TO CELERY: job_id={kwargs.get('job_id')} "
                 f"input={kwargs.get('input_path')}"
             )
-            result = process_video_task.delay(**kwargs)
+            result = process_video_task.delay(**kwargs)  # type: ignore[attr-defined]
             return result.id
         else:
             logger.error("Unknown task submitted to Celery Backend")

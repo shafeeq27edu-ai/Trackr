@@ -36,12 +36,14 @@ class PluginManager:
     """Manages the discovery, loading, and lifecycle of plugins."""
 
     _instance = None
+    _plugins: Dict[str, BasePlugin]
+    _plugin_classes: Dict[str, Type[BasePlugin]]
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(PluginManager, cls).__new__(cls)
-            cls._instance._plugins: Dict[str, BasePlugin] = {}
-            cls._instance._plugin_classes: Dict[str, Type[BasePlugin]] = {}
+            cls._instance._plugins = {}
+            cls._instance._plugin_classes = {}
         return cls._instance
 
     def discover_plugins(self, package_name: str = "plugins"):
@@ -94,7 +96,7 @@ class PluginManager:
 
     def get_plugin(self, name: str) -> BasePlugin:
         """Retrieves an initialized plugin by name."""
-        return self._plugins.get(name)
+        return self._plugins.get(name)  # type: ignore[return-value]
 
     def get_plugins_by_category(self, category: str) -> List[BasePlugin]:
         """Retrieves all loaded plugins of a specific category."""

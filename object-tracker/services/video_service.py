@@ -30,7 +30,7 @@ def load_zones(zones_file: str, resolution_wh: tuple) -> List[Dict[str, Any]]:
             if not z.get("enabled", True):
                 continue
 
-            pts = np.array(z["coordinates"], dtype=np.int32)
+            pts = np.array(z["coordinates"], dtype=np.int64)
             zone_obj = sv.PolygonZone(polygon=pts)
 
             loaded_zones.append(
@@ -103,12 +103,11 @@ async def process_video_file(
         use_heatmap = False
 
     try:
-        total_frames = video_info.total_frames
+        total_frames = video_info.total_frames or 0
         await job_manager.update_job(job_id, status=JobStatus.PROCESSING, stage="Processing frames")
 
         # We need an empty canvas for the heatmap to accumulate over the entire video
-        if use_heatmap:
-            heatmap_canvas = np.zeros((video_info.height, video_info.width, 3), dtype=np.uint8)
+        heatmap_canvas = np.zeros((video_info.height, video_info.width, 3), dtype=np.uint8)
 
         # Process the video frame by frame
         # Attempt H.264 (avc1) first for better browser compatibility, fallback to mp4v if needed
@@ -117,7 +116,7 @@ async def process_video_file(
             # Quick check if avc1 is supported
             test_writer = cv2.VideoWriter(
                 output_path,
-                cv2.VideoWriter_fourcc(*"avc1"),
+                cv2.VideoWriter_fourcc(*"avc1"),  # type: ignore[attr-defined]
                 video_info.fps,
                 video_info.resolution_wh,
             )
@@ -136,8 +135,8 @@ async def process_video_file(
         output_video_info = sv.VideoInfo(
             width=video_info.width,
             height=video_info.height,
-            fps=video_info.fps / stride,
-            total_frames=video_info.total_frames // stride,
+            fps=int(video_info.fps / stride),
+            total_frames=(total_frames // stride) if total_frames else 0,
         )
 
         with sv.VideoSink(
@@ -171,22 +170,21 @@ async def process_video_file(
                         for z in zones:
                             is_in_zone = z["zone_obj"].trigger(detections=b_detections)
                             analytics.process_zone_triggers(
-                                z["id"], is_in_zone, b_detections.tracker_id
+                                z["id"], is_in_zone, list(b_detections.tracker_id)  # type: ignore[arg-type]
                             )
 
                     # 4. Annotate
                     annotated_frame = b_frame
 
                     if use_heatmap and has_tracks:
-                        nonlocal heatmap_canvas
-                        heatmap_canvas = heatmap_annotator.annotate(
+                        heatmap_canvas = heatmap_annotator.annotate(  # type: ignore[possibly-unbound]
                             scene=heatmap_canvas, detections=b_detections
                         )
 
                     if has_tracks:
                         labels = []
                         for class_id, confidence, tracker_id in zip(
-                            b_detections.class_id, b_detections.confidence, b_detections.tracker_id
+                            b_detections.class_id, b_detections.confidence, b_detections.tracker_id  # type: ignore
                         ):
                             speed = analytics.get_track_speed(tracker_id)
                             direction = analytics.get_track_direction(tracker_id)
@@ -288,7 +286,7 @@ async def process_video_file(
             del heatmap_canvas
 
         # Generate final Session Summary
-        summary = analytics.generate_session_summary(total_frames, duration)
+        summary = analytics.generate_session_summary(total_frames or 0, duration)
 
         # Post-process with FFmpeg only if we fell back to mp4v (not browser-compatible)
         if codec != "avc1":

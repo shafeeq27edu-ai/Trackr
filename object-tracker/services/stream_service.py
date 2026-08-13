@@ -55,14 +55,15 @@ class StreamReader:
             logger.error(f"StreamReader: Failed to open video source {self.source_id}")
 
     def _update(self):
+        assert self.cap is not None  # set in start() before thread launch
         while self.running and self.cap.isOpened():
             with system_profiler.measure("camera_read"):
-                ret, frame = self.cap.read()
+                ret, frame = self.cap.read()  # type: ignore[union-attr]
 
             if not ret:
                 if not self.is_live:
                     # Finite video file reached EOF — loop back to start
-                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # type: ignore[union-attr]
                     continue
                 else:
                     # Live source failed — surface the failure
@@ -330,14 +331,14 @@ async def process_live_stream(
 
             # Recording logic
             if stream and stream.is_recording and stream.recording_path:
-                if not hasattr(stream, "writer") or stream.writer is None:
+                if not hasattr(stream, "writer") or stream.writer is None:  # type: ignore[union-attr]
                     h, w = annotated_frame.shape[:2]
-                    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                    stream.writer = cv2.VideoWriter(stream.recording_path, fourcc, fps, (w, h))
-                stream.writer.write(annotated_frame)
-            elif stream and hasattr(stream, "writer") and stream.writer:
-                stream.writer.release()
-                stream.writer = None
+                    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore[attr-defined]
+                    stream.writer = cv2.VideoWriter(stream.recording_path, fourcc, fps, (w, h))  # type: ignore[union-attr]
+                stream.writer.write(annotated_frame)  # type: ignore[union-attr]
+            elif stream and hasattr(stream, "writer") and stream.writer:  # type: ignore[union-attr]
+                stream.writer.release()  # type: ignore[union-attr]
+                stream.writer = None  # type: ignore[union-attr]
 
             frames_processed += 1
 
@@ -351,9 +352,9 @@ async def process_live_stream(
         if "inference_worker" in locals():
             inference_worker.stop()
         reader.release()
-        if stream and hasattr(stream, "writer") and stream.writer:
-            stream.writer.release()
-            stream.writer = None
+        if stream and hasattr(stream, "writer") and stream.writer:  # type: ignore[union-attr]
+            stream.writer.release()  # type: ignore[union-attr]
+            stream.writer = None  # type: ignore[union-attr]
         stream = stream_manager.get_stream(stream_id)
         if stream and stream.status != StreamStatus.FAILED:
             stream_manager.update_stream(stream_id, status=StreamStatus.STOPPED)

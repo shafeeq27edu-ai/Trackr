@@ -25,6 +25,7 @@ class EventBus:
     """
 
     _instance = None
+    _subscribers: dict[EventType, list[Callable]]
 
     def __new__(cls):
         if cls._instance is None:

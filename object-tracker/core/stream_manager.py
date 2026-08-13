@@ -60,6 +60,15 @@ class StreamManager:
     def list_streams(self) -> Dict[str, LiveStream]:
         return self._streams
 
+    def get_active_streams(self) -> List[LiveStream]:
+        """Return streams that are currently playing."""
+        return [s for s in self._streams.values() if s.status == StreamStatus.PLAYING]
+
+    @property
+    def active_connections(self) -> Dict[str, List[WebSocket]]:
+        """Public read-only access to the active WebSocket connections."""
+        return self._active_connections
+
     def update_stream(self, stream_id: str, **kwargs):
         stream = self._streams.get(stream_id)
         if not stream:

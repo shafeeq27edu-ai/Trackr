@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import get_detector
 from core.logging import logger
@@ -17,7 +17,7 @@ def health_check():
 
 
 @router.get("/ready")
-async def readiness_check(db: Session = Depends(get_db), detector: YoloDetector = Depends(get_detector)):
+async def readiness_check(db: AsyncSession = Depends(get_db), detector: YoloDetector = Depends(get_detector)):
     """
     Check if the application is ready to accept traffic.
     Verifies database connectivity and model loading.

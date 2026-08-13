@@ -56,7 +56,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(user)
 
-    await log_audit_event(db, user.id, "REGISTER")
+    await log_audit_event(db, str(user.id), "REGISTER")
     return user
 
 
@@ -67,16 +67,16 @@ async def login(
     email_normalized = form_data.username.strip().lower()
     result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user or not verify_password(form_data.password, str(user.hashed_password)):
         if user:
-            await log_audit_event(db, user.id, "LOGIN_FAILED")
+            await log_audit_event(db, str(user.id), "LOGIN_FAILED")
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.utcnow()  # type: ignore[assignment]
     await db.commit()
 
-    access_token = create_access_token(data={"user_id": user.id})
-    await log_audit_event(db, user.id, "LOGIN_SUCCESS")
+    access_token = create_access_token(data={"user_id": str(user.id)})
+    await log_audit_event(db, str(user.id), "LOGIN_SUCCESS")
 
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -122,12 +122,12 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         )
         db.add(user)
 
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.utcnow()  # type: ignore[assignment]
     await db.commit()
     await db.refresh(user)
 
-    access_token = create_access_token(data={"user_id": user.id})
-    await log_audit_event(db, user.id, "LOGIN_SUCCESS_GOOGLE")
+    access_token = create_access_token(data={"user_id": str(user.id)})
+    await log_audit_event(db, str(user.id), "LOGIN_SUCCESS_GOOGLE")
 
     auth_code = str(uuid.uuid4())
     AUTH_CODES[auth_code] = access_token

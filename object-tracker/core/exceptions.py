@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -29,7 +29,7 @@ class ModelLoadingError(TrackrException):
         super().__init__(message, status_code=500)
 
 
-async def trackr_exception_handler(request: Request, exc: TrackrException):
+async def trackr_exception_handler(request: Request, exc: TrackrException) -> Response:
     logger.error(f"TrackrException occurred: {exc.message} (Status: {exc.status_code})")
     return JSONResponse(
         status_code=exc.status_code,
@@ -37,14 +37,14 @@ async def trackr_exception_handler(request: Request, exc: TrackrException):
     )
 
 
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: HTTPException) -> Response:
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": True, "message": exc.detail},
     )
 
 
-async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError) -> Response:
     errors = [{"loc": err["loc"], "msg": err["msg"], "type": err["type"]} for err in exc.errors()]
     return JSONResponse(
         status_code=422,
@@ -52,7 +52,7 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
     )
 
 
-async def global_exception_handler(request: Request, exc: Exception):
+async def global_exception_handler(request: Request, exc: Exception) -> Response:
     logger.error(f"Unhandled Exception occurred: {str(exc)}", exc_info=True)
     return JSONResponse(
         status_code=500,

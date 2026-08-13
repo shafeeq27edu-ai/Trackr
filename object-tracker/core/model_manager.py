@@ -20,7 +20,7 @@ class ModelManager:
         Delegates to the model_registry.
         """
         # Model registry handles loading and caching
-        return model_registry.get_model(model_path)
+        return model_registry.get_model(model_path)  # type: ignore[return-value]
 
     def get_loaded_models_info(self) -> Dict[str, str]:
         """Returns info on currently loaded models."""

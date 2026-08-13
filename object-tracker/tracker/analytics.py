@@ -27,7 +27,7 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         return "1.0.0"
 
     def get_results(self) -> Dict[str, Any]:
-        return self.get_summary_text()  # Or whatever JSON payload we prefer
+        return {"summary": self.get_summary_text()}
 
     def __init__(self, log_dir: str = "outputs", fps: float = 30.0):
         self.log_dir = log_dir
@@ -127,7 +127,7 @@ class AnalyticsEnginePlugin(BaseAnalytics):
         # Note: Tracker IDs are generated sequentially.
 
         for class_id, tracker_id, bbox in zip(
-            detections.class_id, detections.tracker_id, detections.xyxy
+            detections.class_id, detections.tracker_id, detections.xyxy  # type: ignore
         ):
             try:
                 class_name = class_names[int(class_id)] if class_names else f"class_{class_id}"

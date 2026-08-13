@@ -25,7 +25,7 @@ async def create_job(
     Accepts a video upload, creates a new job, kicks off processing in the background,
     and returns the job ID immediately.
     """
-    job = await job_service.upload_video(file, current_user.id, background_tasks, project_id)
+    job = await job_service.upload_video(file, str(current_user.id), background_tasks, project_id)
     return {
         "job_id": job.id,
         "status": job.status,

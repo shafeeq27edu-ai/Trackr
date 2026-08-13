@@ -36,8 +36,9 @@ async def get_diagnostics(
 ):
     """Detailed system and streaming diagnostics."""
     from core.profiler import system_profiler
-    from core.stream_manager import stream_manager
+    from core.dependencies import get_stream_manager
 
+    stream_manager = get_stream_manager()
     active_streams = stream_manager.get_active_streams()
 
     all_jobs = await job_manager.get_all_jobs()

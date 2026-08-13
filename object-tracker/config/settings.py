@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_cached_settings() -> Settings:
     """Returns a cached instance of the settings."""
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
     env_specific_file = f".env.{settings.environment}"
     if os.path.exists(env_specific_file):
 
@@ -50,7 +50,7 @@ def get_cached_settings() -> Settings:
                 env_file=[".env", env_specific_file], env_file_encoding="utf-8", extra="ignore"
             )
 
-        return EnvSpecificSettings()
+        return EnvSpecificSettings()  # type: ignore[call-arg]
     return settings
 
 

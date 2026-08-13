@@ -85,9 +85,9 @@ from core.exceptions import (  # noqa: E402
 )
 
 # Register Custom Exception Handlers
-app.add_exception_handler(TrackrException, trackr_exception_handler)
-app.add_exception_handler(HTTPException, http_exception_handler)
-app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
+app.add_exception_handler(TrackrException, trackr_exception_handler)  # type: ignore
+app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)  # type: ignore
 app.add_exception_handler(Exception, global_exception_handler)
 
 # Register API Routers

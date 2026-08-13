@@ -30,7 +30,7 @@ async def create_project(
     await db.commit()
     await db.refresh(project)
 
-    await log_audit_event(db, current_user.id, "CREATE_PROJECT", project.id)
+    await log_audit_event(db, str(current_user.id), "CREATE_PROJECT", str(project.id))
     return project
 
 
@@ -58,5 +58,5 @@ async def delete_project(
     await db.delete(project)
     await db.commit()
 
-    await log_audit_event(db, current_user.id, "DELETE_PROJECT", project_id)
+    await log_audit_event(db, str(current_user.id), "DELETE_PROJECT", project_id)
     return {"message": "Project deleted"}

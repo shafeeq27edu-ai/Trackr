@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 class StorageManager:
     _instance = None
+    provider: StorageProvider
 
     def __new__(cls):
         if cls._instance is None:

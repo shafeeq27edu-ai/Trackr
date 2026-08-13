@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -29,7 +30,7 @@ async def create_stream(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    stream = stream_manager.create_stream(request.source, current_user.id)
+    stream = stream_manager.create_stream(request.source, str(current_user.id))
     
     db_stream = Stream(id=stream.id, source=stream.source, user_id=current_user.id)
     db.add(db_stream)
@@ -163,7 +164,7 @@ def stop_record_stream(
 async def websocket_live_stream(
     websocket: WebSocket,
     stream_id: str,
-    token: str = None,
+    token: Optional[str] = None,
     stream_manager: StreamManager = Depends(get_stream_manager),
 ):
     if not token:
@@ -205,7 +206,7 @@ async def websocket_live_stream(
 @router.websocket("/status")
 async def websocket_global_status(
     websocket: WebSocket, 
-    token: str = None,
+    token: Optional[str] = None,
     stream_manager: StreamManager = Depends(get_stream_manager)
 ):
     if not token:

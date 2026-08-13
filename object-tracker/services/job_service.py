@@ -78,18 +78,20 @@ class JobService:
     ) -> Job:
         logger.info(f"Received request to create job for file: {file.filename}")
 
-        if not file.filename.lower().endswith((".mp4", ".avi", ".mov")):
+        if not file.filename or not file.filename.lower().endswith((".mp4", ".avi", ".mov")):
             raise UnsupportedFormatError(f"File {file.filename} is not a supported video format.")
 
         os.makedirs(self.settings.temp_dir, exist_ok=True)
         os.makedirs(self.settings.output_dir, exist_ok=True)
 
         job = await self.job_manager.create_job(
-            filename=file.filename, user_id=user_id, project_id=project_id
+            filename=file.filename or "unknown", user_id=user_id, project_id=project_id
         )
-        job = await self.job_manager.update_job(
+        updated = await self.job_manager.update_job(
             job.id, status=JobStatus.INITIALIZING, stage="Saving file"
         )
+        if updated:
+            job = updated
 
         input_filename = f"{job.id}_{file.filename}"
         output_filename = f"tracked_{job.id}_{file.filename}"
