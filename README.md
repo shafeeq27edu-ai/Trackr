@@ -148,6 +148,12 @@ pytest tests/ --cov=. --cov-report=xml
 
 ---
 
+## 📄 License
+
+This project is open-source and available under the MIT License.
+
+---
+
 ## 🤝 Contributing
 
 We welcome additions and optimization PRs. To maintain the project's health:
