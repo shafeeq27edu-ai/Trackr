@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -27,7 +27,7 @@ class Job(BaseModel):
     status: JobStatus = JobStatus.QUEUED
     progress: float = 0.0
     stage: str = "Job created"
-    start_time: datetime = Field(default_factory=datetime.utcnow)
+    start_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completion_time: Optional[datetime] = None
     duration: Optional[float] = None
     error: Optional[str] = None
@@ -150,7 +150,7 @@ class JobManager:
         if status is not None:
             job.status = status
             if status in [JobStatus.COMPLETED, JobStatus.FAILED]:
-                job.completion_time = datetime.utcnow()
+                job.completion_time = datetime.now(timezone.utc)
                 job.duration = (job.completion_time - job.start_time).total_seconds()
                 if status == JobStatus.COMPLETED:
                     job.progress = 100.0
@@ -230,7 +230,7 @@ class JobManager:
                 if db_job.analytics:  # type: ignore
                     analytics = json.loads(db_job.analytics)  # type: ignore
 
-                jobs[db_job.id] = Job(
+                jobs[str(db_job.id)] = Job(
                     id=str(db_job.id),  # type: ignore[arg-type]
                     filename=str(db_job.filename),  # type: ignore[arg-type]
                     status=JobStatus(db_job.status),  # type: ignore[arg-type]

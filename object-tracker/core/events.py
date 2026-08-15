@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import logging
 from enum import Enum
 from typing import Any, Callable
@@ -48,7 +49,7 @@ class EventBus:
         logger.debug(f"Publishing event: {event_type}")
         for callback in self._subscribers[event_type]:
             try:
-                if asyncio.iscoroutinefunction(callback):
+                if inspect.iscoroutinefunction(callback):
                     # We create a task for async callbacks so we don't block
                     try:
                         loop = asyncio.get_running_loop()

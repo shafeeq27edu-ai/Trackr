@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -22,7 +22,7 @@ class LiveStream(BaseModel):
     status: StreamStatus = StreamStatus.INITIALIZING
     fps: float = 0.0
     resolution: Optional[str] = None
-    start_time: datetime = Field(default_factory=datetime.utcnow)
+    start_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     uptime: float = 0.0
     error: Optional[str] = None
     is_recording: bool = False
@@ -79,7 +79,7 @@ class StreamManager:
                 setattr(stream, key, value)
 
         if "status" in kwargs and stream.status in [StreamStatus.PLAYING]:
-            stream.uptime = (datetime.utcnow() - stream.start_time).total_seconds()
+            stream.uptime = (datetime.now(timezone.utc) - stream.start_time).total_seconds()
 
         return stream
 

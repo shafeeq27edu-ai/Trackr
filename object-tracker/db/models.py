@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
@@ -15,7 +15,7 @@ class User(Base):
     name = Column(String, nullable=True)
     role = Column(String, default="Standard User")
     status = Column(String, default="active")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, nullable=True)
 
     projects = relationship("Project", back_populates="owner")
@@ -30,7 +30,7 @@ class Stream(Base):
     id = Column(String, primary_key=True, index=True)
     source = Column(String)
     user_id = Column(String, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     owner = relationship("User", back_populates="streams")
 
@@ -42,7 +42,7 @@ class Project(Base):
     name = Column(String, index=True)
     description = Column(String, nullable=True)
     user_id = Column(String, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     owner = relationship("User", back_populates="projects")
     jobs = relationship("Job", back_populates="project")
@@ -60,7 +60,7 @@ class Job(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     project_id = Column(String, ForeignKey("projects.id"), nullable=True)
 
-    start_time = Column(DateTime, default=datetime.utcnow)
+    start_time = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completion_time = Column(DateTime, nullable=True)
     duration = Column(Float, nullable=True)
     error = Column(String, nullable=True)
@@ -83,6 +83,6 @@ class AuditLog(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     action = Column(String)
     resource = Column(String, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="audit_logs")

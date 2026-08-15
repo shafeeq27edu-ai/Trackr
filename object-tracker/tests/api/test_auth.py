@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
@@ -92,7 +92,7 @@ def test_protected_invalid_token(auth_client):
 
 
 def test_protected_expired_token(auth_client):
-    expired_payload = {"user_id": "dummy_id", "exp": datetime.utcnow() - timedelta(minutes=15)}
+    expired_payload = {"user_id": "dummy_id", "exp": datetime.now(timezone.utc) - timedelta(minutes=15)}
     token = jwt.encode(expired_payload, SECRET_KEY, algorithm=ALGORITHM)
     res = auth_client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert res.status_code == 401

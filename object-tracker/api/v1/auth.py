@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -72,7 +72,7 @@ async def login(
             await log_audit_event(db, str(user.id), "LOGIN_FAILED")
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
-    user.last_login = datetime.utcnow()  # type: ignore[assignment]
+    user.last_login = datetime.now(timezone.utc)  # type: ignore[assignment]
     await db.commit()
 
     access_token = create_access_token(data={"user_id": str(user.id)})
@@ -122,7 +122,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         )
         db.add(user)
 
-    user.last_login = datetime.utcnow()  # type: ignore[assignment]
+    user.last_login = datetime.now(timezone.utc)  # type: ignore[assignment]
     await db.commit()
     await db.refresh(user)
 

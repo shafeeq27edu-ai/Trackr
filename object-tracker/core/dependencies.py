@@ -37,11 +37,12 @@ def get_stream_manager() -> StreamManager:
 
 
 _job_service_instance = None
+_execution_backend = None
 
 
 def get_job_service() -> "JobService":  # type: ignore  # noqa: F821
 
-    global _job_service_instance
+    global _job_service_instance, _execution_backend
     if _job_service_instance is not None:
         return _job_service_instance
 
@@ -50,8 +51,7 @@ def get_job_service() -> "JobService":  # type: ignore  # noqa: F821
     settings = get_cached_settings()
 
     # We only initialize this once per worker, could be made a global singleton too.
-    global _execution_backend
-    if "_execution_backend" not in globals():
+    if _execution_backend is None:
         if settings.execution_backend == "celery":
             from core.execution.celery_backend import CeleryExecutionBackend
             from core.execution.worker import celery_app
